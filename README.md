@@ -9,13 +9,14 @@ This repository implements a **retrospective collision-severity classification**
 
 ## Files
 
-| File | Purpose |
+| File or folder | Purpose |
 |---|---|
-| `road_safety_dissertation_coding.py` | Complete reproducible analysis script. |
-| `road_safety_dissertation_coding.ipynb` | Notebook runner with the same commands. |
-| `requirements.txt` | Python dependencies. |
-| `example_results/` | Model and robustness results reported in the dissertation. |
-| `CODING_VALIDATION_REPORT.md` | Syntax and execution checks performed before delivery. |
+| `road_safety_dissertation_coding.py` | Main reproducible modelling, evaluation and robustness script. It requires the prepared analysis-ready dataset described below. |
+| `road_safety_dissertation_coding.ipynb` | Notebook interface for running and reviewing the analysis |
+| `requirements.txt` | Python package dependencies |
+| `CODING_VALIDATION_REPORT.md` | Validation and execution checks |
+| `example_results/tables/` | Model performance, robustness and importance outputs |
+| `example_results/figures/` | Selected figures reproduced in the dissertation |
 
 ## Data
 
