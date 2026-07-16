@@ -1,97 +1,82 @@
-[README_coding.md](https://github.com/user-attachments/files/29362749/README_coding.md)
-# Road Safety Dissertation Coding Package
+[README.md](https://github.com/user-attachments/files/30095954/README.md)
+# Road Safety Dissertation: Reproducible Coding
 
-## Project title
-
-**Can Machine Learning Support Evidence-Based Road Safety Policy? Predicting Serious Road Traffic Collisions in Great Britain Using UK Open Government Data**
-
-## Central research question
+## Research question
 
 **To what extent can machine learning predict serious or fatal outcomes in reported road traffic collisions in Great Britain?**
 
-## Files in this coding package
+This repository implements a **retrospective collision-severity classification** task. It predicts severity conditional on a collision having occurred and been reported. It does **not** forecast the occurrence, time or location of future collisions.
+
+## Files
 
 | File | Purpose |
 |---|---|
-| `road_safety_dissertation_coding.py` | Full standalone Python script for data preparation, descriptive analysis, modelling and robustness checks |
-| `road_safety_dissertation_coding.ipynb` | Notebook version of the same workflow |
-| `requirements.txt` | Python packages needed to run the code |
-| `README_coding.md` | This instruction file |
+| `road_safety_dissertation_coding.py` | Complete reproducible analysis script. |
+| `road_safety_dissertation_coding.ipynb` | Notebook runner with the same commands. |
+| `requirements.txt` | Python dependencies. |
+| `example_results/` | Model and robustness results reported in the dissertation. |
+| `CODING_VALIDATION_REPORT.md` | Syntax and execution checks performed before delivery. |
 
-## Expected input data
+## Data
 
-The script first tries to load:
+The raw Department for Transport files are not redistributed because of their size. Download the official Road Safety Open Data and local-authority traffic data, then prepare or place:
 
 ```text
 road_safety_analysis/analysis_ready_road_safety.csv
 ```
 
-If that file is not available, it tries to build the analysis-ready dataset from raw files in:
+The script checks for the required fields and fails with a clear error if the file is missing or incompatible.
 
-```text
-road_safety_data/
-```
-
-Expected raw files:
-
-```text
-collision_last_5_years.csv
-vehicle_last_5_years.csv
-local_authority_traffic.csv
-road_safety_open_dataset_data_guide_2024.xlsx
-```
-
-The casualty file is not used as an ordinary modelling predictor because casualty-level outcomes may create data leakage when predicting collision severity.
-
-## How to run
-
-From the folder containing the script:
+## Installation
 
 ```bash
-python road_safety_dissertation_coding.py
+python -m venv .venv
+source .venv/bin/activate       # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
-To specify folders manually:
+## Main analysis
 
 ```bash
 python road_safety_dissertation_coding.py \
-  --data-dir road_safety_data \
+  --analysis-ready road_safety_analysis/analysis_ready_road_safety.csv \
+  --output-dir road_safety_coding_outputs
+```
+
+The main run uses a stratified 15,000-record sample from 2020–2023 and the full 2024 test set. It compares:
+
+- dummy majority baseline;
+- balanced logistic regression (`liblinear`, `class_weight='balanced'`);
+- Random Forest (100 trees, maximum depth 16, minimum leaf size 50 and balanced subsampling).
+
+Numerical missing values are median-imputed; selected official unknown codes are converted to missing; categorical fields are mode-imputed and one-hot encoded; numerical fields are standardised for logistic regression. Leakage-sensitive outcome and post-outcome fields are excluded.
+
+## Robustness analysis
+
+```bash
+python road_safety_dissertation_coding.py \
   --analysis-ready road_safety_analysis/analysis_ready_road_safety.csv \
   --output-dir road_safety_coding_outputs \
-  --sample-size 15000
+  --run-robustness
 ```
 
-## Main outputs
+This additionally tests:
 
-The script creates:
+- 30,000 and 60,000 training records;
+- random seeds 123 and 2026;
+- training on 2020–2022 and testing on 2023;
+- excluding 2020 and training on 2021–2023 for the 2024 test.
 
-```text
-road_safety_coding_outputs/
-  tables/
-    dataset_summary.json
-    severity_distribution.csv
-    yearly_serious_fatal_rate.csv
-    model_performance_2024_test.csv
-    threshold_sensitivity_random_forest.csv
-    subgroup_evaluation_urban_rural.csv
-    random_forest_feature_importance.csv
-  figures/
-    figure_1_severity_distribution.png
-    figure_2_yearly_rate.png
-    figure_roc_curves.png
-    figure_random_forest_feature_importance.png
+## Outputs
+
+The default run produces the core dissertation tables and figures, including model performance, average precision, threshold sensitivity, ROC curves and the Random Forest confusion matrix. Permutation importance is intentionally optional because it is slower. Run it with:
+
+```bash
+python road_safety_dissertation_coding.py --analysis-ready road_safety_analysis/analysis_ready_road_safety.csv --output-dir road_safety_coding_outputs --run-permutation
 ```
 
-## Why these modelling choices are used
+The `example_results` folder contains the numerical results used in the revised dissertation.
 
-1. **Time-based split**: 2020-2023 is used for training and 2024 for testing. This is closer to a real decision-support setting than a random split.
-2. **Dummy baseline**: shows why accuracy alone is misleading under class imbalance.
-3. **Logistic Regression (SGD)**: provides a transparent and interpretable baseline.
-4. **Random Forest**: captures non-linear relationships and interactions in structured collision data.
-5. **Leakage control**: variables such as `collision_severity`, casualty-level outcomes, `number_of_casualties` and police attendance are excluded.
-6. **Threshold sensitivity**: shows how recall and precision change depending on the cut-off used for classifying serious/fatal outcomes.
-7. **Urban/rural subgroup check**: tests whether performance differs across an important policy-relevant spatial context.
+## Interpretation
 
-## Notes for dissertation writing
-
-The coding supports the methodology and findings chapters. The model should be described as **exploratory decision support**, not an operational automated decision-making system.
+The code supports an exploratory MSc benchmark, not an operational public-sector system. Any deployment would require full-sample retraining, calibration, local validation, subgroup/equity evaluation, monitoring and human oversight.
