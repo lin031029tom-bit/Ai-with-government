@@ -1,8 +1,6 @@
-@@ -1,442 +1,100 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Reproducible coding workflow for the road-safety dissertation.
-"""Validate the prepared road-safety analysis dataset before modelling."""
 
 Research question
 -----------------
@@ -19,7 +17,6 @@ import json
 import warnings
 from pathlib import Path
 from typing import Dict, Iterable, List, Sequence, Tuple
-from typing import Iterable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -47,8 +44,6 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 warnings.filterwarnings("ignore")
 
-EXPECTED_ROWS = 503_475
-EXPECTED_YEARS = {2020, 2021, 2022, 2023, 2024}
 TARGET = "serious_or_fatal"
 RANDOM_STATE = 42
 DEFAULT_ANALYSIS_READY = Path("road_safety_analysis/analysis_ready_road_safety.csv")
@@ -82,29 +77,6 @@ def mkdir(path: Path) -> None:
 
 
 def load_data(path: Path) -> pd.DataFrame:
-YEAR = "collision_year"
-CORE_REQUIRED = {
-    TARGET,
-    YEAR,
-    "month",
-    "hour",
-    "is_weekend",
-    "is_night",
-    "number_of_vehicles",
-    "speed_limit",
-    "urban_or_rural_area",
-    "road_type",
-    "light_conditions",
-    "weather_conditions",
-    "road_surface_conditions",
-}
-
-
-def _format_items(items: Iterable[object]) -> str:
-    return ", ".join(str(item) for item in sorted(items, key=str))
-
-
-def validate(path: Path, enforce_expected_rows: bool = True) -> None:
     if not path.exists():
         raise FileNotFoundError(
             f"Analysis-ready data not found at {path}. Download the official DfT data, "
@@ -138,25 +110,11 @@ def clean_feature_frame(
         out[col] = out[col].astype("object").where(out[col].notna(), "missing").astype(str)
     return out
 
-        raise FileNotFoundError(f"Analysis-ready dataset not found: {path.resolve()}")
 
 def one_hot_encoder() -> OneHotEncoder:
     try:
         return OneHotEncoder(
             handle_unknown="ignore", min_frequency=50, sparse_output=True
-    df = pd.read_csv(path, low_memory=False)
-    print(f"File: {path.resolve()}")
-    print(f"Rows: {len(df):,}")
-    print(f"Columns: {len(df.columns):,}")
-
-    missing_columns = CORE_REQUIRED.difference(df.columns)
-    if missing_columns:
-        raise ValueError(f"Missing required columns: {_format_items(missing_columns)}")
-
-    if enforce_expected_rows and len(df) != EXPECTED_ROWS:
-        raise ValueError(
-            f"Unexpected row count: {len(df):,}; expected {EXPECTED_ROWS:,}. "
-            "Use --allow-row-count-difference only for a documented alternative dataset."
         )
     except TypeError:  # scikit-learn < 1.2 compatibility
         return OneHotEncoder(handle_unknown="ignore")
@@ -264,9 +222,6 @@ def rate_table(df: pd.DataFrame, group: str) -> pd.DataFrame:
     ).round(2)
     return table
 
-    target_values = set(pd.Series(df[TARGET]).dropna().astype(int).unique())
-    if not target_values.issubset({0, 1}):
-        raise ValueError(f"Target must be binary 0/1; found: {_format_items(target_values)}")
 
 def descriptive_outputs(df: pd.DataFrame, tables: Path, figures: Path) -> None:
     severity = df.groupby("collision_severity").agg(
@@ -336,36 +291,11 @@ def fit_main_models(
         probability = model.predict_proba(X_test)[:, 1]
         probabilities[name] = probability
         rows.append(evaluate(name, y_test, probability))
-    years = set(pd.to_numeric(df[YEAR], errors="coerce").dropna().astype(int).unique())
-    if years != EXPECTED_YEARS:
-        raise ValueError(
-            f"Unexpected study years: {_format_items(years)}; "
-            f"expected {_format_items(EXPECTED_YEARS)}"
-        )
 
     performance = pd.DataFrame(rows)
     performance.to_csv(tables / "table_4_3_model_performance_2024_test.csv", index=False)
     performance[["model", "true_negative", "false_positive", "false_negative", "true_positive"]].to_csv(
         tables / "table_4_4_confusion_matrix_counts.csv", index=False
-    if "collision_index" in df.columns:
-        duplicate_count = int(df["collision_index"].duplicated().sum())
-        if duplicate_count:
-            raise ValueError(f"collision_index contains {duplicate_count:,} duplicates")
-        print("collision_index uniqueness: passed")
-
-    positive_rate = pd.to_numeric(df[TARGET], errors="coerce").mean()
-    print(f"Positive-class rate: {positive_rate:.4f}")
-    print(f"Years: {_format_items(years)}")
-    print("Validation passed.")
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--analysis-ready",
-        type=Path,
-        default=Path("road_safety_analysis/analysis_ready_road_safety.csv"),
-        help="Path to the prepared analysis-ready CSV.",
     )
 
     fitted = performance[performance["model"] != "Dummy majority baseline"]
@@ -423,10 +353,6 @@ def permutation_output(
     y_sample = sample.pop(TARGET).astype(int)
     result = permutation_importance(
         rf, sample, y_sample, n_repeats=3, random_state=seed, n_jobs=1, scoring="roc_auc"
-    parser.add_argument(
-        "--allow-row-count-difference",
-        action="store_true",
-        help="Allow a documented alternative dataset with a different row count.",
     )
     importance = pd.DataFrame(
         {"feature": sample.columns, "importance_mean": result.importances_mean, "importance_sd": result.importances_std}
@@ -478,7 +404,6 @@ def robustness_outputs(df: pd.DataFrame, tables: Path) -> pd.DataFrame:
     result = pd.DataFrame(rows)
     result.to_csv(tables / "table_4_5_random_forest_robustness_checks.csv", index=False)
     return result
-    return parser.parse_args()
 
 
 def main() -> None:
@@ -512,8 +437,7 @@ def main() -> None:
     }
     (tables / "run_information.json").write_text(json.dumps(run_info, indent=2), encoding="utf-8")
     print(f"Completed. Outputs are in {args.output_dir.resolve()}")
-    args = parse_args()
-    validate(args.analysis_ready, enforce_expected_rows=not args.allow_row_count_difference)
 
 
 if __name__ == "__main__":
+    main()
