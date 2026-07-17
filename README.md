@@ -1,4 +1,3 @@
-[README.md](https://github.com/user-attachments/files/30128264/README.md)
 # Road Safety Dissertation: Reproducible Modelling and Evaluation
 
 ## Research question
