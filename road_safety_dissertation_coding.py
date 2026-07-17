@@ -77,11 +77,12 @@ def mkdir(path: Path) -> None:
 
 def load_data(path: Path) -> pd.DataFrame:
     if not path.exists():
-        raise FileNotFoundError(
-            f"Analysis-ready data not found at {path}. Download the official DfT data, "
-            "run the cleaning workflow described in README.md, or place the supplied "
-            "analysis_ready_road_safety.csv at that path."
-        )
+       raise FileNotFoundError(
+    f"Analysis-ready data not found at {path}. "
+    "Prepare the dataset using the process documented in the dissertation "
+    "and DATA_PREPARATION_NOTES.md, or place "
+    "analysis_ready_road_safety.csv at the required path."
+)
     df = pd.read_csv(path, low_memory=False)
     required = {"collision_index", "collision_year", "collision_severity", TARGET}
     missing = required.difference(df.columns)
