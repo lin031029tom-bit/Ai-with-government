@@ -1,40 +1,55 @@
-[README.md](https://github.com/user-attachments/files/30095954/README.md)
-# Road Safety Dissertation: Reproducible Coding
+[README.md](https://github.com/user-attachments/files/30127597/README.md)
+# Road Safety Dissertation: Reproducible Modelling and Evaluation
 
 ## Research question
 
 **To what extent can machine learning predict serious or fatal outcomes in reported road traffic collisions in Great Britain?**
 
-This repository implements a **retrospective collision-severity classification** task. It predicts severity conditional on a collision having occurred and been reported. It does **not** forecast the occurrence, time or location of future collisions.
+This repository implements a **retrospective collision-severity classification** task. It predicts severity conditional on a personal-injury collision having occurred and been reported. It does **not** forecast the occurrence, time or location of future collisions.
 
-## Files
+## Reproducibility scope
 
-| File or folder | Purpose |
-|---|---|
-| `road_safety_dissertation_coding.py` | Main reproducible modelling, evaluation and robustness script. It requires the prepared analysis-ready dataset described below. |
-| `road_safety_dissertation_coding.ipynb` | Notebook interface for running and reviewing the analysis |
-| `requirements.txt` | Python package dependencies |
-| `CODING_VALIDATION_REPORT.md` | Validation and execution checks |
-| `example_results/tables/` | Model performance, robustness and importance outputs |
-| `example_results/figures/` | Selected figures reproduced in the dissertation |
+The public repository reproduces the **modelling, evaluation and robustness stages** once the prepared analysis-ready dataset is supplied. It does not independently reconstruct the complete analytical dataset from the raw Department for Transport files.
 
-## Data
-
-The raw Department for Transport files are not redistributed because of their size. Download the official Road Safety Open Data and local-authority traffic data, then prepare or place:
+The raw files and the large analysis-ready dataset are not redistributed. Place the prepared file at:
 
 ```text
 road_safety_analysis/analysis_ready_road_safety.csv
 ```
 
-The script checks for the required fields and fails with a clear error if the file is missing or incompatible.
+The dissertation documents the data sources, unit of analysis, feature groups, leakage exclusions, merge design and temporal validation strategy.
+
+## Repository files
+
+| File or folder | Purpose |
+|---|---|
+| `road_safety_dissertation_coding.py` | Main modelling, evaluation and robustness script |
+| `road_safety_dissertation_coding.ipynb` | Executed notebook retained as evidence of the completed run |
+| `road_safety_dissertation_coding_clean.ipynb` | Clean Colab wrapper for repeat runs and output review |
+| `validate_analysis_ready_data.py` | Automated checks for the prepared dataset |
+| `requirements.txt` | Python dependencies |
+| `CODING_VALIDATION_REPORT.md` | Summary of execution and consistency checks |
+| `DATA_PREPARATION_NOTES.md` | Scope and expected structure of the prepared dataset |
+| `example_results/tables/` | Model performance, robustness and importance outputs |
+| `example_results/figures/` | Selected figures used in the dissertation |
 
 ## Installation
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate       # Windows: .venv\Scripts\activate
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
+
+## Validate the prepared dataset
+
+```bash
+python validate_analysis_ready_data.py \
+  --analysis-ready road_safety_analysis/analysis_ready_road_safety.csv
+```
+
+The validator checks the file path, required fields, binary target, study years, expected row count and collision identifier uniqueness where available.
 
 ## Main analysis
 
@@ -44,40 +59,29 @@ python road_safety_dissertation_coding.py \
   --output-dir road_safety_coding_outputs
 ```
 
-The main run uses a stratified 15,000-record sample from 2020–2023 and the full 2024 test set. It compares:
+The primary run uses a stratified 15,000-record sample from 2020-2023 and the full 2024 test set. It compares:
 
 - dummy majority baseline;
 - balanced logistic regression (`liblinear`, `class_weight='balanced'`);
 - Random Forest (100 trees, maximum depth 16, minimum leaf size 50 and balanced subsampling).
 
-Numerical missing values are median-imputed; selected official unknown codes are converted to missing; categorical fields are mode-imputed and one-hot encoded; numerical fields are standardised for logistic regression. Leakage-sensitive outcome and post-outcome fields are excluded.
-
-## Robustness analysis
+## Full robustness and interpretation run
 
 ```bash
 python road_safety_dissertation_coding.py \
   --analysis-ready road_safety_analysis/analysis_ready_road_safety.csv \
   --output-dir road_safety_coding_outputs \
+  --run-permutation \
   --run-robustness
 ```
 
-This additionally tests:
+The robustness analysis includes:
 
 - 30,000 and 60,000 training records;
-- random seeds 123 and 2026;
-- training on 2020–2022 and testing on 2023;
-- excluding 2020 and training on 2021–2023 for the 2024 test.
-
-## Outputs
-
-The default run produces the core dissertation tables and figures, including model performance, average precision, threshold sensitivity, ROC curves and the Random Forest confusion matrix. Permutation importance is intentionally optional because it is slower. Run it with:
-
-```bash
-python road_safety_dissertation_coding.py --analysis-ready road_safety_analysis/analysis_ready_road_safety.csv --output-dir road_safety_coding_outputs --run-permutation
-```
-
-The `example_results` folder contains the numerical results used in the revised dissertation.
+- alternative random seeds 123 and 2026;
+- training on 2020-2022 and testing on 2023;
+- excluding 2020 and training on 2021-2023 for the 2024 test.
 
 ## Interpretation
 
-The code supports an exploratory MSc benchmark, not an operational public-sector system. Any deployment would require full-sample retraining, calibration, local validation, subgroup/equity evaluation, monitoring and human oversight.
+The code supports an exploratory MSc benchmark, not an operational public-sector system. The current model is a retrospective analytical tool. Any future operational use would require a clearly specified use case, full-sample retraining, probability calibration, prospective and local validation, subgroup/equity evaluation, monitoring and human oversight.
