@@ -9,7 +9,7 @@
   `python validate_analysis_ready_data.py --analysis-ready road_safety_analysis/analysis_ready_road_safety.csv`
 - Modelling command:
   `python road_safety_dissertation_coding.py --analysis-ready road_safety_analysis/analysis_ready_road_safety.csv --output-dir road_safety_coding_outputs --run-permutation --run-robustness`
-- Validated Git commit: `3229eff461e2a486386c2d3cf910a4f4c533d23a`
+- Validated Git commit: Pending final rerun
 
 ## Scope
 
