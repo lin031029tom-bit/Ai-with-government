@@ -1,6 +1,0 @@
-example_results/
-└── figures/
-    ├── figure_4_5_model_performance.png
-    ├── figure_4_6_roc_curves.png
-    ├── figure_4_7_permutation_importance.png
-    └── figure_4_8_confusion_matrix.png
