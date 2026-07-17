@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.ipynb_checkpoints/
+
+road_safety_data/
+road_safety_analysis/
+road_safety_coding_outputs/
