@@ -50,9 +50,9 @@ The raw-to-analysis-ready data preparation pipeline is not included as a complet
 ## Validation boundary
 
 The metrics in this report were generated from the validated code commit identified
-above. The subsequent artifact-only commit records this report and the synchronized
-`example_results`; it does not change the validated modelling code or tests.
-Later code changes require a fresh full-data run before they can be described as
-end-to-end validated. Automated tests can check syntax, preprocessing and small
-synthetic model runs, but they do not replace validation against the 503,475-record
-analysis-ready dataset.
+above. Subsequent commits record this report, synchronize `example_results`, and
+update the CI action runtimes; they do not change the validated modelling code or
+tests. Later modelling-code changes require a fresh full-data run before they can
+be described as end-to-end validated. Automated tests can check syntax,
+preprocessing and small synthetic model runs, but they do not replace validation
+against the 503,475-record analysis-ready dataset.
