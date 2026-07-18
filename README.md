@@ -30,8 +30,8 @@ The dissertation documents the data sources, unit of analysis, feature groups, l
 | `requirements.txt` | Python dependencies |
 | `CODING_VALIDATION_REPORT.md` | Summary of execution and consistency checks |
 | `DATA_PREPARATION_NOTES.md` | Scope and expected structure of the prepared dataset |
-| `example_results/tables/` | Model performance, robustness and importance outputs |
-| `example_results/figures/` | Selected figures used in the dissertation |
+| `example_results/tables/` | Verified descriptive, model, robustness, interpretation and provenance outputs |
+| `example_results/figures/` | Verified Figures 4.1-4.8 plus supplementary precision-recall curves |
 
 ## Installation
 

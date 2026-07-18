@@ -1,0 +1,11 @@
+weather_conditions,weather_conditions_label,collisions,serious_or_fatal,slight,serious_fatal_rate_pct
+-1,Unknown,13,3,10,23.08
+1,Fine no high winds,400956,95708,305248,23.87
+2,Raining no high winds,57187,13044,44143,22.81
+3,Snowing no high winds,1741,384,1357,22.06
+4,Fine with high winds,5158,1476,3682,28.62
+5,Raining with high winds,5958,1533,4425,25.73
+6,Snowing with high winds,292,60,232,20.55
+7,Fog or mist,2296,626,1670,27.26
+8,Other,15270,2906,12364,19.03
+9,Unknown,14604,1728,12876,11.83
