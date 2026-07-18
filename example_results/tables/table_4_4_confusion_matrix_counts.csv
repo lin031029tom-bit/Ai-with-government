@@ -1,0 +1,4 @@
+model,true_negative,false_positive,false_negative,true_positive
+Dummy majority baseline,75858,0,25069,0
+Balanced logistic regression,44246,31612,9003,16066
+Random Forest,48755,27103,10276,14793

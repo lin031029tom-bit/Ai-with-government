@@ -1,0 +1,9 @@
+{
+  "research_task": "retrospective severity classification conditional on a reported collision",
+  "train_years": "2020\u20132023",
+  "test_year": 2024,
+  "training_sample": 15000,
+  "random_state": 42,
+  "positive_class_test_prevalence": 0.24838744835376064,
+  "robustness_executed": true
+}

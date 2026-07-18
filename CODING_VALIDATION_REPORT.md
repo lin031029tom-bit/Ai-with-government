@@ -2,14 +2,14 @@
 
 ## Validation metadata
 
-- Validation date: 17 July 2026
+- Validation date: 19 July 2026
 - Dataset records: 503,475
-- Python version: 3.12
+- Python version: 3.12.13
 - Validation command:
   `python validate_analysis_ready_data.py --analysis-ready road_safety_analysis/analysis_ready_road_safety.csv`
 - Modelling command:
   `python road_safety_dissertation_coding.py --analysis-ready road_safety_analysis/analysis_ready_road_safety.csv --output-dir road_safety_coding_outputs --run-permutation --run-robustness`
-- Validated Git commit: `34b29ce193125694991404534b9befead665b3a5`
+- Validated Git commit: `4fda2dd07c02311fff3ece62774ec2cf31b17aa5`
 
 ## Scope
 
@@ -29,12 +29,12 @@ The coding workflow was checked against the dissertation's reported design and r
 | Model | Accuracy | Precision | Recall | F1 | ROC-AUC | Average precision |
 |---|---:|---:|---:|---:|---:|---:|
 | Dummy majority baseline | 0.7516 | 0.0000 | 0.0000 | 0.0000 | N/A | 0.2484 |
-| Balanced logistic regression | 0.5971 | 0.3368 | 0.6419 | 0.4418 | 0.6613 | 0.3928 |
-| Random Forest | 0.6303 | 0.3540 | 0.5920 | 0.4430 | 0.6663 | 0.3933 |
+| Balanced logistic regression | 0.5976 | 0.3370 | 0.6409 | 0.4417 | 0.6612 | 0.3927 |
+| Random Forest | 0.6296 | 0.3531 | 0.5901 | 0.4418 | 0.6662 | 0.3930 |
 
 ## Robustness checks
 
-Random Forest ROC-AUC remained between **0.6704 and 0.6838** across alternative seeds and temporal designs. Increasing the training sample to 30,000 and 60,000 records produced ROC-AUC values of **0.6763** and **0.6796** respectively.
+Random Forest ROC-AUC remained between **0.6702 and 0.6837** across alternative seeds and temporal designs. Increasing the training sample to 30,000 and 60,000 records produced ROC-AUC values of **0.6763** and **0.6802** respectively.
 
 ## Interpretation check
 
@@ -49,8 +49,10 @@ The raw-to-analysis-ready data preparation pipeline is not included as a complet
 
 ## Validation boundary
 
-The metrics in this report apply to the validated commit identified above.
-Subsequent maintenance commits require a fresh full-data run before they can be
-described as end-to-end validated. Automated tests can check syntax, preprocessing
-and small synthetic model runs, but they do not replace validation against the
-503,475-record analysis-ready dataset.
+The metrics in this report were generated from the validated code commit identified
+above. The subsequent artifact-only commit records this report and the synchronized
+`example_results`; it does not change the validated modelling code or tests.
+Later code changes require a fresh full-data run before they can be described as
+end-to-end validated. Automated tests can check syntax, preprocessing and small
+synthetic model runs, but they do not replace validation against the 503,475-record
+analysis-ready dataset.
