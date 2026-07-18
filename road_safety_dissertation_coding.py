@@ -104,14 +104,24 @@ def feature_lists(df: pd.DataFrame) -> Tuple[List[str], List[str]]:
 
 
 def clean_feature_frame(
-    frame: pd.DataFrame, numeric: Sequence[str], categorical: Sequence[str]
+    frame: pd.DataFrame,
+    numeric: Sequence[str],
+    categorical: Sequence[str],
 ) -> pd.DataFrame:
     out = frame[list(numeric) + list(categorical)].copy()
+
     for col, unknown_values in UNKNOWN_VALUE_MAP.items():
-    if col in out.columns:
-        out[col] = out[col].replace(unknown_values, np.nan)
+        if col in out.columns:
+            out[col] = out[col].replace(unknown_values, np.nan)
+
     for col in categorical:
-        out[col] = out[col].astype("object").where(out[col].notna(), "missing").astype(str)
+        out[col] = (
+            out[col]
+            .astype("object")
+            .where(out[col].notna(), "missing")
+            .astype(str)
+        )
+
     return out
 
 
