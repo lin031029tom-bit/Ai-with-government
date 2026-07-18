@@ -46,3 +46,11 @@ Random Forest ROC-AUC remained between **0.6704 and 0.6838** across alternative 
 ## Remaining reproducibility limitation
 
 The raw-to-analysis-ready data preparation pipeline is not included as a complete tested script. The README and dissertation therefore describe the repository accurately as reproducing modelling, evaluation and robustness from the prepared dataset.
+
+## Validation boundary
+
+The metrics in this report apply to the validated commit identified above.
+Subsequent maintenance commits require a fresh full-data run before they can be
+described as end-to-end validated. Automated tests can check syntax, preprocessing
+and small synthetic model runs, but they do not replace validation against the
+503,475-record analysis-ready dataset.

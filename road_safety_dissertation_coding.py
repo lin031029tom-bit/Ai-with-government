@@ -79,12 +79,12 @@ def mkdir(path: Path) -> None:
 
 def load_data(path: Path) -> pd.DataFrame:
     if not path.exists():
-       raise FileNotFoundError(
-    f"Analysis-ready data not found at {path}. "
-    "Prepare the dataset using the process documented in the dissertation "
-    "and DATA_PREPARATION_NOTES.md, or place "
-    "analysis_ready_road_safety.csv at the required path."
-)
+        raise FileNotFoundError(
+            f"Analysis-ready data not found at {path}. "
+            "Prepare the dataset using the process documented in the dissertation "
+            "and DATA_PREPARATION_NOTES.md, or place "
+            "analysis_ready_road_safety.csv at the required path."
+        )
     df = pd.read_csv(path, low_memory=False)
     required = {"collision_index", "collision_year", "collision_severity", TARGET}
     missing = required.difference(df.columns)
@@ -235,6 +235,22 @@ def rate_table(df: pd.DataFrame, group: str) -> pd.DataFrame:
     return table
 
 
+def local_authority_rate_table(
+    df: pd.DataFrame, min_collisions: int = 500
+) -> pd.DataFrame:
+    if min_collisions < 1:
+        raise ValueError("min_collisions must be at least 1")
+    table = rate_table(df, "local_authority_highway")
+    return (
+        table[table["collisions"] >= min_collisions]
+        .sort_values(
+            ["serious_fatal_rate_pct", "collisions"],
+            ascending=[False, False],
+        )
+        .reset_index(drop=True)
+    )
+
+
 def descriptive_outputs(df: pd.DataFrame, tables: Path, figures: Path) -> None:
     severity = df.groupby("collision_severity").agg(
         collisions=("collision_index", "count")
@@ -253,6 +269,11 @@ def descriptive_outputs(df: pd.DataFrame, tables: Path, figures: Path) -> None:
     urban = rate_table(df, "urban_or_rural_area")
     urban["area"] = urban["urban_or_rural_area"].map({1: "Urban", 2: "Rural", 3: "Unallocated"})
     urban.to_csv(tables / "urban_rural_serious_fatal_rate.csv", index=False)
+    if "local_authority_highway" in df.columns:
+        local_authority_rate_table(df).to_csv(
+            tables / "local_authority_serious_fatal_rate_min_500.csv",
+            index=False,
+        )
 
     plt.figure(figsize=(8, 5))
     plt.bar(severity["severity"], severity["collisions"])

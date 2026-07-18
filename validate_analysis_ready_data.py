@@ -53,11 +53,27 @@ def validate(path: Path, enforce_expected_rows: bool = True) -> None:
             "Use --allow-row-count-difference only for a documented alternative dataset."
         )
 
-    target_values = set(pd.Series(df[TARGET]).dropna().astype(int).unique())
+    target = pd.to_numeric(df[TARGET], errors="coerce")
+    invalid_target_count = int(target.isna().sum())
+    if invalid_target_count:
+        raise ValueError(
+            f"Target contains {invalid_target_count:,} missing or non-numeric values"
+        )
+
+    target_values = set(target.unique())
     if not target_values.issubset({0, 1}):
         raise ValueError(f"Target must be binary 0/1; found: {_format_items(target_values)}")
 
-    years = set(pd.to_numeric(df[YEAR], errors="coerce").dropna().astype(int).unique())
+    year_values = pd.to_numeric(df[YEAR], errors="coerce")
+    invalid_year_count = int(year_values.isna().sum())
+    if invalid_year_count:
+        raise ValueError(
+            f"collision_year contains {invalid_year_count:,} missing or non-numeric values"
+        )
+    if year_values.mod(1).ne(0).any():
+        raise ValueError("collision_year must contain whole-number years")
+
+    years = set(year_values.astype(int).unique())
     if years != EXPECTED_YEARS:
         raise ValueError(
             f"Unexpected study years: {_format_items(years)}; "
@@ -65,12 +81,24 @@ def validate(path: Path, enforce_expected_rows: bool = True) -> None:
         )
 
     if "collision_index" in df.columns:
+        collision_index = df["collision_index"]
+        missing_identifier_count = int(
+            (
+                collision_index.isna()
+                | collision_index.astype(str).str.strip().eq("")
+            ).sum()
+        )
+        if missing_identifier_count:
+            raise ValueError(
+                "collision_index contains "
+                f"{missing_identifier_count:,} missing or blank values"
+            )
         duplicate_count = int(df["collision_index"].duplicated().sum())
         if duplicate_count:
             raise ValueError(f"collision_index contains {duplicate_count:,} duplicates")
         print("collision_index uniqueness: passed")
 
-    positive_rate = pd.to_numeric(df[TARGET], errors="coerce").mean()
+    positive_rate = target.mean()
     print(f"Positive-class rate: {positive_rate:.4f}")
     print(f"Years: {_format_items(years)}")
     print("Validation passed.")

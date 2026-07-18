@@ -23,7 +23,7 @@ The dissertation documents the data sources, unit of analysis, feature groups, l
 | File or folder | Purpose |
 |---|---|
 | `road_safety_dissertation_coding.py` | Main modelling, evaluation and robustness script |
-| `road_safety_dissertation_coding.ipynb` | Executed notebook retained as evidence of the completed run |
+| `road_safety_dissertation_coding.ipynb` | Retained Colab execution log, including setup and data-upload troubleshooting |
 | `road_safety_dissertation_coding_clean.ipynb` | Clean Colab wrapper for repeat runs and output review |
 | `validate_analysis_ready_data.py` | Automated checks for the prepared dataset |
 | `requirements.txt` | Python dependencies |
@@ -34,12 +34,28 @@ The dissertation documents the data sources, unit of analysis, feature groups, l
 
 ## Installation
 
+The pinned dependency set was validated with Python 3.12.
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
+
+## Automated checks
+
+The repository includes lightweight tests for the dataset validator and numerical
+preprocessing. They do not require the restricted analysis-ready dataset:
+
+```bash
+python -m py_compile \
+  road_safety_dissertation_coding.py \
+  validate_analysis_ready_data.py
+python -m unittest discover -s tests -v
+```
+
+GitHub Actions runs the same checks on pushes and pull requests.
 
 ## Validate the prepared dataset
 
@@ -49,6 +65,17 @@ python validate_analysis_ready_data.py \
 ```
 
 The validator checks the file path, required fields, binary target, study years, expected row count and collision identifier uniqueness where available.
+
+## Validation status
+
+`CODING_VALIDATION_REPORT.md` identifies the exact commit used for the documented
+full-data run. Later commits should not be described as end-to-end validated until
+the analysis is rerun with the prepared dataset and the report is updated.
+
+The retained executed notebook contains attempts made before the dataset was
+available and therefore includes `FileNotFoundError` output. Use the clean notebook
+for a fresh end-to-end Colab run; do not treat the retained notebook alone as proof
+of a successful current-commit run.
 
 ## Main analysis
 
@@ -63,6 +90,10 @@ The primary run uses a stratified 15,000-record sample from 2020-2023 and the fu
 - dummy majority baseline;
 - balanced logistic regression (`liblinear`, `class_weight='balanced'`);
 - Random Forest (100 trees, maximum depth 16, minimum leaf size 50 and balanced subsampling).
+
+The descriptive outputs also include local-authority serious/fatal rates for
+authorities with at least 500 collision records, matching the reporting rule used
+in the dissertation.
 
 ## Full robustness and interpretation run
 
