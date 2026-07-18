@@ -41,8 +41,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-warnings.filterwarnings("ignore")
-
 TARGET = "serious_or_fatal"
 RANDOM_STATE = 42
 DEFAULT_ANALYSIS_READY = Path("road_safety_analysis/analysis_ready_road_safety.csv")
