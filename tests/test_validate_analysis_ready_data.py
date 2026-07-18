@@ -14,11 +14,13 @@ def valid_rows() -> list[dict[str, object]]:
     rows = []
     for offset, year in enumerate(range(2020, 2025)):
         row = {column: 1 for column in CORE_REQUIRED}
+        target = offset % 2
         row.update(
             {
                 "collision_index": f"collision-{year}",
                 "collision_year": year,
-                "serious_or_fatal": offset % 2,
+                "collision_severity": 2 if target else 3,
+                "serious_or_fatal": target,
             }
         )
         rows.append(row)
@@ -41,7 +43,11 @@ class ValidateAnalysisReadyDataTests(unittest.TestCase):
     def run_validation(self, rows: list[dict[str, object]]) -> None:
         self.write_rows(rows)
         with redirect_stdout(io.StringIO()):
-            validate(self.path, enforce_expected_rows=False)
+            validate(
+                self.path,
+                enforce_expected_rows=False,
+                enforce_expected_features=False,
+            )
 
     def test_accepts_valid_alternative_row_count(self) -> None:
         self.run_validation(valid_rows())
@@ -71,7 +77,23 @@ class ValidateAnalysisReadyDataTests(unittest.TestCase):
         rows = valid_rows()
         rows[0]["collision_year"] = 2020.5
 
-        with self.assertRaisesRegex(ValueError, "whole-number years"):
+        with self.assertRaisesRegex(ValueError, "whole-number values"):
+            self.run_validation(rows)
+
+    def test_rejects_missing_collision_identifier_column(self) -> None:
+        rows = valid_rows()
+        for row in rows:
+            del row["collision_index"]
+
+        with self.assertRaisesRegex(ValueError, "collision_index"):
+            self.run_validation(rows)
+
+    def test_rejects_missing_collision_severity_column(self) -> None:
+        rows = valid_rows()
+        for row in rows:
+            del row["collision_severity"]
+
+        with self.assertRaisesRegex(ValueError, "collision_severity"):
             self.run_validation(rows)
 
     def test_rejects_duplicate_collision_identifier(self) -> None:
@@ -87,6 +109,27 @@ class ValidateAnalysisReadyDataTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "missing or blank"):
             self.run_validation(rows)
+
+    def test_rejects_target_that_disagrees_with_severity(self) -> None:
+        rows = valid_rows()
+        rows[0]["serious_or_fatal"] = 1
+        rows[0]["collision_severity"] = 3
+
+        with self.assertRaisesRegex(ValueError, "does not match"):
+            self.run_validation(rows)
+
+    def test_strict_schema_rejects_missing_dissertation_features(self) -> None:
+        self.write_rows(valid_rows())
+
+        with self.assertRaisesRegex(
+            ValueError, "Missing dissertation reproduction columns"
+        ):
+            with redirect_stdout(io.StringIO()):
+                validate(
+                    self.path,
+                    enforce_expected_rows=False,
+                    enforce_expected_features=True,
+                )
 
 
 if __name__ == "__main__":

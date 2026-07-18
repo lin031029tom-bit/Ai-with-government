@@ -30,6 +30,7 @@ jobs:
       - name: Check Python syntax
         run: >-
           python -m py_compile
+          analysis_schema.py
           road_safety_dissertation_coding.py
           validate_analysis_ready_data.py
 

@@ -13,7 +13,11 @@ occurred and been reported. It is not a model of future collision occurrence.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import importlib.metadata
 import json
+import platform
+import subprocess
 from pathlib import Path
 from typing import Dict, Iterable, List, Sequence, Tuple
 
@@ -41,35 +45,47 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-TARGET = "serious_or_fatal"
+from analysis_schema import (
+    CATEGORICAL_FEATURES,
+    MODEL_FEATURES,
+    NUMERIC_FEATURES,
+    TARGET,
+    UNKNOWN_VALUE_MAP,
+)
+from validate_analysis_ready_data import validate
+
 RANDOM_STATE = 42
 DEFAULT_ANALYSIS_READY = Path("road_safety_analysis/analysis_ready_road_safety.csv")
 DEFAULT_OUTPUT_DIR = Path("road_safety_coding_outputs")
 
-NUMERIC_CANDIDATES = [
-    "month", "hour", "is_weekend", "is_night", "longitude", "latitude",
-    "number_of_vehicles", "speed_limit", "traffic_link_length_km",
-    "traffic_all_motor_vehicles", "traffic_all_motor_vehicles_per_km",
-    "traffic_cars_taxis_share", "vehicle_record_count", "n_pedal_cycles",
-    "n_motorcycles", "n_cars_taxis", "n_buses_minibuses", "n_goods_vehicles",
-    "vehicle_type_nunique", "mean_driver_age", "min_driver_age", "max_driver_age",
-    "any_young_driver_17_24", "any_older_driver_65_plus", "mean_vehicle_age",
-    "max_vehicle_age",
-]
-CATEGORICAL_CANDIDATES = [
-    "day_of_week", "police_force", "local_authority_highway",
-    "urban_or_rural_area", "first_road_class", "road_type", "junction_detail",
-    "junction_control", "pedestrian_crossing", "light_conditions",
-    "weather_conditions", "road_surface_conditions", "special_conditions_at_site",
-    "carriageway_hazards", "trunk_road_flag",
-]
-UNKNOWN_VALUE_MAP = {
-    "speed_limit": [-1],
-    "mean_driver_age": [-1],
-    "min_driver_age": [-1],
-    "max_driver_age": [-1],
-    "mean_vehicle_age": [-1],
-    "max_vehicle_age": [-1],
+ROAD_TYPE_LABELS = {
+    -1: "Unknown",
+    1: "Roundabout",
+    2: "One way street",
+    3: "Dual carriageway",
+    6: "Single carriageway",
+    7: "Slip road",
+    9: "Unknown",
+}
+LIGHT_CONDITION_LABELS = {
+    -1: "Unknown",
+    1: "Daylight",
+    4: "Darkness - lights lit",
+    5: "Darkness - lights unlit",
+    6: "Darkness - no lighting",
+    7: "Darkness - lighting unknown",
+}
+WEATHER_CONDITION_LABELS = {
+    -1: "Unknown",
+    1: "Fine no high winds",
+    2: "Raining no high winds",
+    3: "Snowing no high winds",
+    4: "Fine with high winds",
+    5: "Raining with high winds",
+    6: "Snowing with high winds",
+    7: "Fog or mist",
+    8: "Other",
+    9: "Unknown",
 }
 
 
@@ -77,28 +93,47 @@ def mkdir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
-def load_data(path: Path) -> pd.DataFrame:
-    if not path.exists():
-        raise FileNotFoundError(
-            f"Analysis-ready data not found at {path}. "
-            "Prepare the dataset using the process documented in the dissertation "
-            "and DATA_PREPARATION_NOTES.md, or place "
-            "analysis_ready_road_safety.csv at the required path."
+def load_data(
+    path: Path,
+    enforce_expected_rows: bool = True,
+    enforce_expected_features: bool = True,
+) -> pd.DataFrame:
+    return validate(
+        path,
+        enforce_expected_rows=enforce_expected_rows,
+        enforce_expected_features=enforce_expected_features,
+    )
+
+
+def feature_lists(
+    df: pd.DataFrame,
+    require_all: bool = True,
+) -> Tuple[List[str], List[str]]:
+    missing = [column for column in MODEL_FEATURES if column not in df.columns]
+    if require_all and missing:
+        raise ValueError(
+            "Missing required dissertation model features: "
+            f"{', '.join(missing)}"
         )
-    df = pd.read_csv(path, low_memory=False)
-    required = {"collision_index", "collision_year", "collision_severity", TARGET}
-    missing = required.difference(df.columns)
-    if missing:
-        raise ValueError(f"The analysis-ready file is missing required columns: {sorted(missing)}")
-    return df
 
-
-def feature_lists(df: pd.DataFrame) -> Tuple[List[str], List[str]]:
-    numeric = [c for c in NUMERIC_CANDIDATES if c in df.columns]
-    categorical = [c for c in CATEGORICAL_CANDIDATES if c in df.columns]
+    numeric = [c for c in NUMERIC_FEATURES if c in df.columns]
+    categorical = [c for c in CATEGORICAL_FEATURES if c in df.columns]
     if not numeric and not categorical:
         raise ValueError("No modelling features were found in the analysis-ready data.")
     return numeric, categorical
+
+
+def validated_binary_target(frame: pd.DataFrame) -> pd.Series:
+    target = pd.to_numeric(frame[TARGET], errors="coerce")
+    invalid_count = int(target.isna().sum())
+    if invalid_count:
+        raise ValueError(
+            f"Target contains {invalid_count:,} missing or non-numeric values"
+        )
+    found = set(target.unique())
+    if not found.issubset({0, 1}):
+        raise ValueError(f"Target must be binary 0/1; found: {sorted(found)}")
+    return target.astype("int8")
 
 
 def clean_feature_frame(
@@ -156,6 +191,8 @@ def preprocessor(
 def stratified_sample(frame: pd.DataFrame, n: int | None, seed: int) -> pd.DataFrame:
     if n is None or n >= len(frame):
         return frame.copy()
+    if n < 2:
+        raise ValueError("Sample size must be at least 2")
     sample, _ = train_test_split(
         frame, train_size=n, stratify=frame[TARGET], random_state=seed
     )
@@ -241,6 +278,36 @@ def local_authority_rate_table(
     if min_collisions < 1:
         raise ValueError("min_collisions must be at least 1")
     table = rate_table(df, "local_authority_highway")
+
+    if "traffic_local_authority_name" in df.columns:
+        authority_names = (
+            df.loc[
+                df["traffic_local_authority_name"].notna(),
+                ["local_authority_highway", "traffic_local_authority_name"],
+            ]
+            .drop_duplicates()
+        )
+        conflicting_codes = (
+            authority_names.groupby("local_authority_highway")[
+                "traffic_local_authority_name"
+            ]
+            .nunique()
+            .loc[lambda counts: counts > 1]
+        )
+        if not conflicting_codes.empty:
+            raise ValueError(
+                "Conflicting traffic local-authority names for highway codes: "
+                f"{', '.join(map(str, conflicting_codes.index))}"
+            )
+        name_map = authority_names.set_index("local_authority_highway")[
+            "traffic_local_authority_name"
+        ]
+        table.insert(
+            1,
+            "local_authority_name",
+            table["local_authority_highway"].map(name_map),
+        )
+
     return (
         table[table["collisions"] >= min_collisions]
         .sort_values(
@@ -264,11 +331,57 @@ def descriptive_outputs(df: pd.DataFrame, tables: Path, figures: Path) -> None:
     yearly = rate_table(df, "collision_year").sort_values("collision_year")
     yearly.to_csv(tables / "table_4_2_yearly_serious_fatal_rate.csv", index=False)
 
-    speed = rate_table(df, "speed_limit").sort_values("speed_limit")
-    speed.to_csv(tables / "speed_limit_serious_fatal_rate.csv", index=False)
-    urban = rate_table(df, "urban_or_rural_area")
-    urban["area"] = urban["urban_or_rural_area"].map({1: "Urban", 2: "Rural", 3: "Unallocated"})
-    urban.to_csv(tables / "urban_rural_serious_fatal_rate.csv", index=False)
+    if "road_type" in df.columns:
+        road_type = rate_table(df, "road_type").sort_values("road_type")
+        road_type.insert(
+            1, "road_type_label", road_type["road_type"].map(ROAD_TYPE_LABELS)
+        )
+        road_type.to_csv(
+            tables / "road_type_serious_fatal_rate.csv", index=False
+        )
+
+    if "light_conditions" in df.columns:
+        light = rate_table(df, "light_conditions").sort_values(
+            "light_conditions"
+        )
+        light.insert(
+            1,
+            "light_conditions_label",
+            light["light_conditions"].map(LIGHT_CONDITION_LABELS),
+        )
+        light.to_csv(
+            tables / "light_conditions_serious_fatal_rate.csv", index=False
+        )
+
+    if "weather_conditions" in df.columns:
+        weather = rate_table(df, "weather_conditions").sort_values(
+            "weather_conditions"
+        )
+        weather.insert(
+            1,
+            "weather_conditions_label",
+            weather["weather_conditions"].map(WEATHER_CONDITION_LABELS),
+        )
+        weather.to_csv(
+            tables / "weather_conditions_serious_fatal_rate.csv", index=False
+        )
+
+    speed = None
+    if "speed_limit" in df.columns:
+        speed = rate_table(df, "speed_limit").sort_values("speed_limit")
+        speed.to_csv(
+            tables / "speed_limit_serious_fatal_rate.csv", index=False
+        )
+
+    urban = None
+    if "urban_or_rural_area" in df.columns:
+        urban = rate_table(df, "urban_or_rural_area")
+        urban["area"] = urban["urban_or_rural_area"].map(
+            {1: "Urban", 2: "Rural", 3: "Unallocated"}
+        )
+        urban.to_csv(
+            tables / "urban_rural_serious_fatal_rate.csv", index=False
+        )
     if "local_authority_highway" in df.columns:
         local_authority_rate_table(df).to_csv(
             tables / "local_authority_serious_fatal_rate_min_500.csv",
@@ -287,33 +400,58 @@ def descriptive_outputs(df: pd.DataFrame, tables: Path, figures: Path) -> None:
     plt.title("Serious/Fatal Collision Rate by Year")
     plt.tight_layout(); plt.savefig(figures / "figure_4_2_yearly_rate.png", dpi=300); plt.close()
 
-    speed_plot = speed[speed["speed_limit"].isin([20, 30, 40, 50, 60, 70])]
-    plt.figure(figsize=(8, 5))
-    plt.bar(speed_plot["speed_limit"].astype(str), speed_plot["serious_fatal_rate_pct"])
-    plt.xlabel("Speed limit"); plt.ylabel("Serious/fatal rate (%)")
-    plt.title("Serious/Fatal Rate by Speed Limit")
-    plt.tight_layout(); plt.savefig(figures / "figure_4_3_speed_limit_rate.png", dpi=300); plt.close()
+    if speed is not None:
+        speed_plot = speed[
+            speed["speed_limit"].isin([20, 30, 40, 50, 60, 70])
+        ]
+        plt.figure(figsize=(8, 5))
+        plt.bar(
+            speed_plot["speed_limit"].astype(str),
+            speed_plot["serious_fatal_rate_pct"],
+        )
+        plt.xlabel("Speed limit"); plt.ylabel("Serious/fatal rate (%)")
+        plt.title("Serious/Fatal Rate by Speed Limit")
+        plt.tight_layout()
+        plt.savefig(
+            figures / "figure_4_3_speed_limit_rate.png", dpi=300
+        )
+        plt.close()
 
-    urban_plot = urban[urban["area"].isin(["Urban", "Rural"])]
-    plt.figure(figsize=(8, 5))
-    plt.barh(urban_plot["area"], urban_plot["serious_fatal_rate_pct"])
-    plt.xlabel("Serious/fatal rate (%)"); plt.ylabel("Area type")
-    plt.title("Serious/Fatal Rate by Urban/Rural Area")
-    plt.tight_layout(); plt.savefig(figures / "figure_4_4_urban_rural_rate.png", dpi=300); plt.close()
+    if urban is not None:
+        urban_plot = urban[urban["area"].isin(["Urban", "Rural"])]
+        plt.figure(figsize=(8, 5))
+        plt.barh(urban_plot["area"], urban_plot["serious_fatal_rate_pct"])
+        plt.xlabel("Serious/fatal rate (%)"); plt.ylabel("Area type")
+        plt.title("Serious/Fatal Rate by Urban/Rural Area")
+        plt.tight_layout()
+        plt.savefig(
+            figures / "figure_4_4_urban_rural_rate.png", dpi=300
+        )
+        plt.close()
 
 
 def fit_main_models(
-    df: pd.DataFrame, tables: Path, figures: Path, sample_size: int, seed: int
+    df: pd.DataFrame,
+    tables: Path,
+    figures: Path,
+    sample_size: int,
+    seed: int,
+    require_all_features: bool = True,
 ) -> Tuple[Dict[str, Pipeline], pd.DataFrame, pd.DataFrame, pd.Series, Dict[str, np.ndarray]]:
-    numeric, categorical = feature_lists(df)
+    numeric, categorical = feature_lists(df, require_all=require_all_features)
     train_all = df[df["collision_year"].between(2020, 2023)].copy()
     test = df[df["collision_year"] == 2024].copy()
+    if train_all.empty or test.empty:
+        raise ValueError(
+            "The primary temporal split requires training records from 2020-2023 "
+            "and test records from 2024"
+        )
     train = stratified_sample(train_all, sample_size, seed)
 
     X_train = clean_feature_frame(train, numeric, categorical)
     X_test = clean_feature_frame(test, numeric, categorical)
-    y_train = train[TARGET].astype(int)
-    y_test = test[TARGET].astype(int)
+    y_train = validated_binary_target(train)
+    y_test = validated_binary_target(test)
 
     models = make_models(numeric, categorical, seed)
     rows: List[Dict] = []
@@ -400,15 +538,16 @@ def permutation_output(
 
 def robustness_run(
     df: pd.DataFrame, train_years: Iterable[int], test_year: int, n: int,
-    seed: int, label: str
+    seed: int, label: str, require_all_features: bool = True
 ) -> Dict:
-    numeric, categorical = feature_lists(df)
+    numeric, categorical = feature_lists(df, require_all=require_all_features)
     train_all = df[df["collision_year"].isin(list(train_years))].copy()
     test = df[df["collision_year"] == test_year].copy()
     train = stratified_sample(train_all, n, seed)
     X_train = clean_feature_frame(train, numeric, categorical)
     X_test = clean_feature_frame(test, numeric, categorical)
-    y_train = train[TARGET].astype(int); y_test = test[TARGET].astype(int)
+    y_train = validated_binary_target(train)
+    y_test = validated_binary_target(test)
     rf = make_models(numeric, categorical, seed)["Random Forest"]
     rf.fit(X_train, y_train)
     probability = rf.predict_proba(X_test)[:, 1]
@@ -420,7 +559,11 @@ def robustness_run(
     return row
 
 
-def robustness_outputs(df: pd.DataFrame, tables: Path) -> pd.DataFrame:
+def robustness_outputs(
+    df: pd.DataFrame,
+    tables: Path,
+    require_all_features: bool = True,
+) -> pd.DataFrame:
     specifications = [
         ((2020, 2021, 2022, 2023), 2024, 15000, 42, "Primary 15,000 sample"),
         ((2020, 2021, 2022, 2023), 2024, 30000, 42, "30,000 training records"),
@@ -433,10 +576,102 @@ def robustness_outputs(df: pd.DataFrame, tables: Path) -> pd.DataFrame:
     rows = []
     for spec in specifications:
         print(f"Robustness check: {spec[-1]}...")
-        rows.append(robustness_run(df, *spec))
+        rows.append(
+            robustness_run(
+                df,
+                *spec,
+                require_all_features=require_all_features,
+            )
+        )
     result = pd.DataFrame(rows)
     result.to_csv(tables / "table_4_5_random_forest_robustness_checks.csv", index=False)
     return result
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def current_git_commit() -> str | None:
+    completed = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if completed.returncode:
+        return None
+    return completed.stdout.strip() or None
+
+
+def dependency_versions() -> Dict[str, str]:
+    packages = [
+        "pandas",
+        "numpy",
+        "matplotlib",
+        "scikit-learn",
+        "openpyxl",
+        "nbformat",
+    ]
+    return {
+        package: importlib.metadata.version(package)
+        for package in packages
+    }
+
+
+def run_information(
+    df: pd.DataFrame,
+    data_path: Path,
+    sample_size: int,
+    seed: int,
+    run_permutation: bool,
+    run_robustness: bool,
+    enforce_expected_rows: bool,
+    enforce_expected_features: bool,
+) -> Dict:
+    numeric, categorical = feature_lists(
+        df, require_all=enforce_expected_features
+    )
+    matched = (
+        pd.to_numeric(df["traffic_merge_matched"], errors="coerce")
+        if "traffic_merge_matched" in df.columns
+        else None
+    )
+    return {
+        "research_task": (
+            "retrospective severity classification conditional on a "
+            "reported collision"
+        ),
+        "git_commit": current_git_commit(),
+        "dataset_sha256": sha256_file(data_path),
+        "dataset_rows": int(len(df)),
+        "dataset_columns": int(len(df.columns)),
+        "train_years": "2020–2023",
+        "test_year": 2024,
+        "training_sample": sample_size,
+        "random_state": seed,
+        "positive_class_test_prevalence": float(
+            df.loc[df["collision_year"] == 2024, TARGET].mean()
+        ),
+        "model_feature_count": len(numeric) + len(categorical),
+        "model_features": numeric + categorical,
+        "strict_expected_row_count": enforce_expected_rows,
+        "strict_dissertation_feature_schema": enforce_expected_features,
+        "traffic_merge_matched_records": (
+            int(matched.sum()) if matched is not None else None
+        ),
+        "traffic_merge_match_rate": (
+            float(matched.mean()) if matched is not None else None
+        ),
+        "permutation_executed": run_permutation,
+        "robustness_executed": run_robustness,
+        "python_version": platform.python_version(),
+        "dependency_versions": dependency_versions(),
+    }
 
 
 def main() -> None:
@@ -445,30 +680,64 @@ def main() -> None:
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--sample-size", type=int, default=15000)
     parser.add_argument("--seed", type=int, default=RANDOM_STATE)
+    parser.add_argument(
+        "--allow-row-count-difference",
+        action="store_true",
+        help="Allow a documented alternative dataset with a different row count.",
+    )
+    parser.add_argument(
+        "--allow-feature-set-difference",
+        action="store_true",
+        help=(
+            "Allow a documented alternative dataset without the complete "
+            "dissertation feature and audit schema."
+        ),
+    )
     parser.add_argument("--run-robustness", action="store_true", help="Run the seven additional RF checks (slower).")
     parser.add_argument("--run-permutation", action="store_true", help="Run permutation importance (slower).")
     args = parser.parse_args()
 
     tables = args.output_dir / "tables"; figures = args.output_dir / "figures"
     mkdir(tables); mkdir(figures)
-    df = load_data(args.analysis_ready)
+    enforce_expected_rows = not args.allow_row_count_difference
+    enforce_expected_features = not args.allow_feature_set_difference
+    df = load_data(
+        args.analysis_ready,
+        enforce_expected_rows=enforce_expected_rows,
+        enforce_expected_features=enforce_expected_features,
+    )
     descriptive_outputs(df, tables, figures)
     models, X_test, test, y_test, probabilities = fit_main_models(
-        df, tables, figures, args.sample_size, args.seed
+        df,
+        tables,
+        figures,
+        args.sample_size,
+        args.seed,
+        require_all_features=enforce_expected_features,
     )
     if args.run_permutation:
         permutation_output(models["Random Forest"], X_test, y_test, tables, figures, seed=args.seed)
     if args.run_robustness:
-        robustness_outputs(df, tables)
+        robustness_outputs(
+            df,
+            tables,
+            require_all_features=enforce_expected_features,
+        )
 
-    run_info = {
-        "research_task": "retrospective severity classification conditional on a reported collision",
-        "train_years": "2020–2023", "test_year": 2024,
-        "training_sample": args.sample_size, "random_state": args.seed,
-        "positive_class_test_prevalence": float((test[TARGET] == 1).mean()),
-        "robustness_executed": bool(args.run_robustness),
-    }
-    (tables / "run_information.json").write_text(json.dumps(run_info, indent=2), encoding="utf-8")
+    run_info = run_information(
+        df,
+        args.analysis_ready,
+        args.sample_size,
+        args.seed,
+        args.run_permutation,
+        args.run_robustness,
+        enforce_expected_rows,
+        enforce_expected_features,
+    )
+    (tables / "run_information.json").write_text(
+        json.dumps(run_info, indent=2) + "\n",
+        encoding="utf-8",
+    )
     print(f"Completed. Outputs are in {args.output_dir.resolve()}")
 
 

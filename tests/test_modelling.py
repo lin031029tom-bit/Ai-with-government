@@ -9,9 +9,11 @@ import pandas as pd
 from road_safety_dissertation_coding import (
     TARGET,
     clean_feature_frame,
+    feature_lists,
     fit_main_models,
     local_authority_rate_table,
     mkdir,
+    validated_binary_target,
 )
 
 
@@ -73,6 +75,7 @@ class ModellingWorkflowTests(unittest.TestCase):
                 figures,
                 sample_size=32,
                 seed=42,
+                require_all_features=False,
             )
 
             self.assertEqual(len(test), 12)
@@ -95,6 +98,9 @@ class ModellingWorkflowTests(unittest.TestCase):
             {
                 "collision_index": [f"collision-{index}" for index in range(600)],
                 "local_authority_highway": ["included"] * 550 + ["excluded"] * 50,
+                "traffic_local_authority_name": (
+                    ["Included Authority"] * 550 + ["Excluded Authority"] * 50
+                ),
                 TARGET: [index % 4 == 0 for index in range(600)],
             }
         )
@@ -102,7 +108,28 @@ class ModellingWorkflowTests(unittest.TestCase):
         table = local_authority_rate_table(frame, min_collisions=500)
 
         self.assertEqual(table["local_authority_highway"].tolist(), ["included"])
+        self.assertEqual(
+            table["local_authority_name"].tolist(), ["Included Authority"]
+        )
         self.assertEqual(table["collisions"].tolist(), [550])
+
+    def test_rejects_fractional_target_in_direct_model_calls(self) -> None:
+        frame = pd.DataFrame({TARGET: [0, 0.5, 1]})
+
+        with self.assertRaisesRegex(ValueError, "binary 0/1"):
+            validated_binary_target(frame)
+
+    def test_strict_feature_selection_rejects_partial_model_schema(self) -> None:
+        frame = pd.DataFrame({"month": [1], "road_type": ["single"]})
+
+        with self.assertRaisesRegex(
+            ValueError, "Missing required dissertation model features"
+        ):
+            feature_lists(frame, require_all=True)
+
+        numeric, categorical = feature_lists(frame, require_all=False)
+        self.assertEqual(numeric, ["month"])
+        self.assertEqual(categorical, ["road_type"])
 
 
 if __name__ == "__main__":

@@ -9,32 +9,91 @@ from typing import Iterable
 
 import pandas as pd
 
-EXPECTED_ROWS = 503_475
-EXPECTED_YEARS = {2020, 2021, 2022, 2023, 2024}
-TARGET = "serious_or_fatal"
-YEAR = "collision_year"
-CORE_REQUIRED = {
+from analysis_schema import (
+    CATEGORICAL_FEATURES,
+    CORE_REQUIRED,
+    DISSERTATION_REQUIRED,
+    EXPECTED_ROWS,
+    EXPECTED_YEARS,
+    MODEL_FEATURES,
     TARGET,
     YEAR,
-    "month",
-    "hour",
-    "is_weekend",
-    "is_night",
-    "number_of_vehicles",
-    "speed_limit",
-    "urban_or_rural_area",
-    "road_type",
-    "light_conditions",
-    "weather_conditions",
-    "road_surface_conditions",
-}
+)
 
 
 def _format_items(items: Iterable[object]) -> str:
     return ", ".join(str(item) for item in sorted(items, key=str))
 
 
-def validate(path: Path, enforce_expected_rows: bool = True) -> None:
+def _validated_binary(series: pd.Series, name: str) -> pd.Series:
+    values = pd.to_numeric(series, errors="coerce")
+    invalid_count = int(values.isna().sum())
+    if invalid_count:
+        raise ValueError(
+            f"{name} contains {invalid_count:,} missing or non-numeric values"
+        )
+    found = set(values.unique())
+    if not found.issubset({0, 1}):
+        raise ValueError(
+            f"{name} must be binary 0/1; found: {_format_items(found)}"
+        )
+    return values.astype("int8")
+
+
+def _validated_whole_numbers(series: pd.Series, name: str) -> pd.Series:
+    values = pd.to_numeric(series, errors="coerce")
+    invalid_count = int(values.isna().sum())
+    if invalid_count:
+        raise ValueError(
+            f"{name} contains {invalid_count:,} missing or non-numeric values"
+        )
+    if values.mod(1).ne(0).any():
+        raise ValueError(f"{name} must contain whole-number values")
+    return values.astype(int)
+
+
+def _validate_traffic_merge(df: pd.DataFrame) -> None:
+    if "traffic_merge_matched" not in df.columns:
+        return
+
+    matched = _validated_binary(df["traffic_merge_matched"], "traffic_merge_matched")
+    matched_count = int(matched.sum())
+    match_rate = float(matched.mean())
+
+    if "traffic_local_authority_name" in df.columns:
+        missing_name = df["traffic_local_authority_name"].isna() | (
+            df["traffic_local_authority_name"].astype(str).str.strip() == ""
+        )
+        matched_without_name = int((matched.eq(1) & missing_name).sum())
+        if matched_without_name:
+            raise ValueError(
+                "traffic_local_authority_name is missing for "
+                f"{matched_without_name:,} traffic-matched records"
+            )
+
+        mappings_per_code = (
+            df.loc[matched.eq(1)]
+            .groupby("local_authority_highway")["traffic_local_authority_name"]
+            .nunique(dropna=True)
+        )
+        conflicting_codes = mappings_per_code[mappings_per_code > 1]
+        if not conflicting_codes.empty:
+            raise ValueError(
+                "traffic_local_authority_name has conflicting names for highway "
+                f"codes: {_format_items(conflicting_codes.index)}"
+            )
+
+    print(
+        "Traffic-context merge: "
+        f"{matched_count:,}/{len(df):,} matched ({match_rate:.4%})"
+    )
+
+
+def validate(
+    path: Path,
+    enforce_expected_rows: bool = True,
+    enforce_expected_features: bool = True,
+) -> pd.DataFrame:
     if not path.exists():
         raise FileNotFoundError(f"Analysis-ready dataset not found: {path.resolve()}")
 
@@ -45,7 +104,17 @@ def validate(path: Path, enforce_expected_rows: bool = True) -> None:
 
     missing_columns = CORE_REQUIRED.difference(df.columns)
     if missing_columns:
-        raise ValueError(f"Missing required columns: {_format_items(missing_columns)}")
+        raise ValueError(
+            f"Missing core required columns: {_format_items(missing_columns)}"
+        )
+
+    if enforce_expected_features:
+        missing_dissertation_columns = DISSERTATION_REQUIRED.difference(df.columns)
+        if missing_dissertation_columns:
+            raise ValueError(
+                "Missing dissertation reproduction columns: "
+                f"{_format_items(missing_dissertation_columns)}"
+            )
 
     if enforce_expected_rows and len(df) != EXPECTED_ROWS:
         raise ValueError(
@@ -53,55 +122,74 @@ def validate(path: Path, enforce_expected_rows: bool = True) -> None:
             "Use --allow-row-count-difference only for a documented alternative dataset."
         )
 
-    target = pd.to_numeric(df[TARGET], errors="coerce")
-    invalid_target_count = int(target.isna().sum())
-    if invalid_target_count:
+    target = _validated_binary(df[TARGET], "Target")
+
+    severity = _validated_whole_numbers(
+        df["collision_severity"], "collision_severity"
+    )
+    severity_values = set(severity.unique())
+    if not severity_values.issubset({1, 2, 3}):
         raise ValueError(
-            f"Target contains {invalid_target_count:,} missing or non-numeric values"
+            "collision_severity must use official codes 1/2/3; "
+            f"found: {_format_items(severity_values)}"
+        )
+    expected_target = severity.isin({1, 2}).astype("int8")
+    target_mismatch_count = int(target.ne(expected_target).sum())
+    if target_mismatch_count:
+        raise ValueError(
+            "Target does not match collision_severity for "
+            f"{target_mismatch_count:,} records"
         )
 
-    target_values = set(target.unique())
-    if not target_values.issubset({0, 1}):
-        raise ValueError(f"Target must be binary 0/1; found: {_format_items(target_values)}")
-
-    year_values = pd.to_numeric(df[YEAR], errors="coerce")
-    invalid_year_count = int(year_values.isna().sum())
-    if invalid_year_count:
-        raise ValueError(
-            f"collision_year contains {invalid_year_count:,} missing or non-numeric values"
-        )
-    if year_values.mod(1).ne(0).any():
-        raise ValueError("collision_year must contain whole-number years")
-
-    years = set(year_values.astype(int).unique())
+    year_values = _validated_whole_numbers(df[YEAR], "collision_year")
+    years = set(year_values.unique())
     if years != EXPECTED_YEARS:
         raise ValueError(
             f"Unexpected study years: {_format_items(years)}; "
             f"expected {_format_items(EXPECTED_YEARS)}"
         )
 
-    if "collision_index" in df.columns:
-        collision_index = df["collision_index"]
-        missing_identifier_count = int(
-            (
-                collision_index.isna()
-                | collision_index.astype(str).str.strip().eq("")
-            ).sum()
+    collision_index = df["collision_index"]
+    missing_identifier_count = int(
+        (
+            collision_index.isna()
+            | collision_index.astype(str).str.strip().eq("")
+        ).sum()
+    )
+    if missing_identifier_count:
+        raise ValueError(
+            "collision_index contains "
+            f"{missing_identifier_count:,} missing or blank values"
         )
-        if missing_identifier_count:
+    duplicate_count = int(collision_index.duplicated().sum())
+    if duplicate_count:
+        raise ValueError(f"collision_index contains {duplicate_count:,} duplicates")
+    print("collision_index uniqueness: passed")
+
+    for column in MODEL_FEATURES:
+        if column not in df.columns:
+            continue
+        if column in CATEGORICAL_FEATURES:
+            continue
+        numeric = pd.to_numeric(df[column], errors="coerce")
+        non_numeric_count = int((df[column].notna() & numeric.isna()).sum())
+        if non_numeric_count:
             raise ValueError(
-                "collision_index contains "
-                f"{missing_identifier_count:,} missing or blank values"
+                f"{column} contains {non_numeric_count:,} non-numeric values"
             )
-        duplicate_count = int(df["collision_index"].duplicated().sum())
-        if duplicate_count:
-            raise ValueError(f"collision_index contains {duplicate_count:,} duplicates")
-        print("collision_index uniqueness: passed")
+
+    _validate_traffic_merge(df)
 
     positive_rate = target.mean()
     print(f"Positive-class rate: {positive_rate:.4f}")
     print(f"Years: {_format_items(years)}")
+    print(
+        "Model features: "
+        f"{sum(column in df.columns for column in MODEL_FEATURES)}/"
+        f"{len(MODEL_FEATURES)} present"
+    )
     print("Validation passed.")
+    return df
 
 
 def parse_args() -> argparse.Namespace:
@@ -117,12 +205,24 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Allow a documented alternative dataset with a different row count.",
     )
+    parser.add_argument(
+        "--allow-feature-set-difference",
+        action="store_true",
+        help=(
+            "Allow a documented alternative dataset without the complete "
+            "dissertation feature and audit schema."
+        ),
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    validate(args.analysis_ready, enforce_expected_rows=not args.allow_row_count_difference)
+    validate(
+        args.analysis_ready,
+        enforce_expected_rows=not args.allow_row_count_difference,
+        enforce_expected_features=not args.allow_feature_set_difference,
+    )
 
 
 if __name__ == "__main__":

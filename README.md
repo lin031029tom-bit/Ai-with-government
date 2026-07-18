@@ -22,6 +22,7 @@ The dissertation documents the data sources, unit of analysis, feature groups, l
 
 | File or folder | Purpose |
 |---|---|
+| `analysis_schema.py` | Shared strict schema for the validated dissertation dataset |
 | `road_safety_dissertation_coding.py` | Main modelling, evaluation and robustness script |
 | `road_safety_dissertation_coding.ipynb` | Retained Colab execution log, including setup and data-upload troubleshooting |
 | `road_safety_dissertation_coding_clean.ipynb` | Clean Colab wrapper for repeat runs and output review |
@@ -50,6 +51,7 @@ preprocessing. They do not require the restricted analysis-ready dataset:
 
 ```bash
 python -m py_compile \
+  analysis_schema.py \
   road_safety_dissertation_coding.py \
   validate_analysis_ready_data.py
 python -m unittest discover -s tests -v
@@ -64,7 +66,21 @@ python validate_analysis_ready_data.py \
   --analysis-ready road_safety_analysis/analysis_ready_road_safety.csv
 ```
 
-The validator checks the file path, required fields, binary target, study years, expected row count and collision identifier uniqueness where available.
+The default validator is the strict dissertation-reproduction check. It requires
+the complete 41-feature model schema, collision identifiers and severity fields;
+checks row count, study years, identifier uniqueness, numerical types and the
+binary target; verifies that the target agrees with official collision severity;
+and reports traffic-context merge coverage.
+
+For a clearly documented alternative dataset, the row-count and complete-feature
+checks can be relaxed independently:
+
+```bash
+python validate_analysis_ready_data.py \
+  --analysis-ready path/to/alternative.csv \
+  --allow-row-count-difference \
+  --allow-feature-set-difference
+```
 
 ## Validation status
 
@@ -85,6 +101,11 @@ python road_safety_dissertation_coding.py \
   --output-dir road_safety_coding_outputs
 ```
 
+The modelling command automatically runs the same strict validation before
+training. Invalid or fractional targets are rejected rather than converted to
+integers. The two `--allow-...-difference` flags shown above are also available
+on the modelling command for explicitly documented alternative data.
+
 The primary run uses a stratified 15,000-record sample from 2020-2023 and the full 2024 test set. It compares:
 
 - dummy majority baseline;
@@ -93,7 +114,9 @@ The primary run uses a stratified 15,000-record sample from 2020-2023 and the fu
 
 The descriptive outputs also include local-authority serious/fatal rates for
 authorities with at least 500 collision records, matching the reporting rule used
-in the dissertation.
+in the dissertation. The table contains both official authority codes and readable
+authority names. Separate machine-readable rate tables reproduce the dissertation's
+road-type, lighting-condition and weather-condition percentages.
 
 ## Full robustness and interpretation run
 
@@ -111,6 +134,10 @@ The robustness analysis includes:
 - alternative random seeds 123 and 2026;
 - training on 2020-2022 and testing on 2023;
 - excluding 2020 and training on 2021-2023 for the 2024 test.
+
+`run_information.json` records the exact Git commit, dataset SHA-256, row and
+column counts, selected features, Python and dependency versions, traffic merge
+coverage and which optional analyses were executed.
 
 ## Interpretation
 
