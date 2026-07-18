@@ -65,10 +65,14 @@ CATEGORICAL_CANDIDATES = [
     "weather_conditions", "road_surface_conditions", "special_conditions_at_site",
     "carriageway_hazards", "trunk_road_flag",
 ]
-UNKNOWN_NUMERIC_COLUMNS = [
-    "speed_limit", "mean_driver_age", "min_driver_age", "max_driver_age",
-    "mean_vehicle_age", "max_vehicle_age",
-]
+UNKNOWN_VALUE_MAP = {
+    "speed_limit": [-1],
+    "mean_driver_age": [-1],
+    "min_driver_age": [-1],
+    "max_driver_age": [-1],
+    "mean_vehicle_age": [-1],
+    "max_vehicle_age": [-1],
+}
 
 
 def mkdir(path: Path) -> None:
@@ -103,9 +107,9 @@ def clean_feature_frame(
     frame: pd.DataFrame, numeric: Sequence[str], categorical: Sequence[str]
 ) -> pd.DataFrame:
     out = frame[list(numeric) + list(categorical)].copy()
-    for col in UNKNOWN_NUMERIC_COLUMNS:
-        if col in out.columns:
-            out[col] = out[col].replace([-1, 99], np.nan)
+    for col, unknown_values in UNKNOWN_VALUE_MAP.items():
+    if col in out.columns:
+        out[col] = out[col].replace(unknown_values, np.nan)
     for col in categorical:
         out[col] = out[col].astype("object").where(out[col].notna(), "missing").astype(str)
     return out
