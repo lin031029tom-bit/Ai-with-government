@@ -37,8 +37,10 @@ and robustness stages conditional on the prepared analysis-ready dataset.
 ## Automated checks
 
 - Python syntax compilation: **passed**
-- Unit and command-line integration tests: **25/25 passed**
+- Unit, command-line and reproduction-orchestration tests: **27/27 passed**
 - Main modelling command automatically repeated strict dataset validation: **passed**
+- One-command reproduction stopped on analysis failure and invoked result
+  verification only after successful analysis: **passed**
 - Generated tables matched the seven verified core, robustness, threshold and
   interpretation outputs at `1e-9` numerical tolerance: **7/7 passed**
 
@@ -72,6 +74,9 @@ clean validated code commit identified above. The subsequent artifact commit
 records this report and synchronizes `example_results/run_information.json`; it
 does not change the validated modelling or verification code. Later modelling
 code changes require a fresh full-data run before they can be described as
-full-data validated. Automated tests check syntax, validation, preprocessing,
-small synthetic model runs and result-comparison failures, but they do not
-replace validation against the 503,475-record analysis-ready dataset.
+full-data validated. The two orchestration tests added after the full-data run
+exercise only the one-command control flow and do not change the modelling code
+or verified numerical results. Automated tests check syntax, validation,
+preprocessing, small synthetic model runs, orchestration and result-comparison
+failures, but they do not replace validation against the 503,475-record
+analysis-ready dataset.

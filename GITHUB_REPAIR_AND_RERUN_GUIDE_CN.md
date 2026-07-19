@@ -3,9 +3,9 @@
 ## 当前验证状态
 
 - 修改位于 Draft PR #1 的 `codex/validation-ci` 分支，审核完成前不要合并到 `main`。
-- `8463fa8` 是使用完整分析数据验证过的代码提交。
-- `eb6860f` 同步了验证报告、示例输出和 notebook，不改变已验证的建模代码。
-- GitHub Actions 运行 `29668394885` 已通过，仓库测试共 23 项，全部通过。
+- `4eccd08` 是使用完整分析数据执行一键复现并通过结果核验的代码提交。
+- `663a529` 记录了完整数据验证报告和示例输出，不改变已验证的建模代码。
+- 当前仓库测试共 27 项；提交后以 PR 的 Checks 页面为最终 GitHub Actions 依据。
 - 验证环境为 Python 3.12；仓库根目录的 `.python-version` 记录了该版本。
 
 PR 链接：
@@ -56,15 +56,18 @@ python validate_analysis_ready_data.py \
   --analysis-ready road_safety_analysis/analysis_ready_road_safety.csv
 ```
 
-运行主分析：
+推荐的一键完整复现：
 
 ```bash
-python road_safety_dissertation_coding.py \
+python reproduce_dissertation.py \
   --analysis-ready road_safety_analysis/analysis_ready_road_safety.csv \
   --output-dir road_safety_coding_outputs
 ```
 
-运行置换检验和稳健性分析：
+该命令会依次运行严格数据验证、主分析、置换重要性、稳健性分析，并把七张关键结果表
+与仓库中经过验证的结果逐值比较。任一阶段失败时命令都会返回失败状态。
+
+如需单独运行主脚本：
 
 ```bash
 python road_safety_dissertation_coding.py \
@@ -83,7 +86,7 @@ python -m unittest discover -s tests -v
 ## Colab 重新运行
 
 推荐打开 `road_safety_dissertation_coding_clean.ipynb`。该 notebook 固定到已验证的
-`8463fa8` 提交，避免 `main` 或 PR 后续变化造成结果漂移。按 notebook 提示上传分析就绪
+`4eccd08` 提交，避免 `main` 或 PR 后续变化造成结果漂移。按 notebook 提示上传分析就绪
 CSV，然后运行所有单元格。
 
 `road_safety_dissertation_coding.ipynb` 是保留的 Colab 执行记录，包括设置和上传数据时的
@@ -108,8 +111,8 @@ CSV，然后运行所有单元格。
 - PR 仍为 Draft，且没有直接修改 `main`。
 - GitHub Actions 在 PR 最新提交上通过。
 - Python 版本为 3.12，依赖来自 `requirements.txt`。
-- `analysis_schema.py`、验证脚本、主脚本与 `tests/` 均存在。
-- 两个 notebook 均通过格式验证，clean notebook 仍固定到 `8463fa8`。
+- `analysis_schema.py`、验证脚本、主脚本、一键复现脚本与 `tests/` 均存在。
+- 两个 notebook 均通过格式验证，clean notebook 仍固定到 `4eccd08`。
 - `CODING_VALIDATION_REPORT.md`、`DATA_PREPARATION_NOTES.md` 和
   `example_results/` 与论文中报告的结果一致。
 - 不提交受限 CSV、虚拟环境、缓存或临时输出。
