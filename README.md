@@ -94,8 +94,9 @@ the analysis is rerun with the prepared dataset and the report is updated.
 
 The retained executed notebook contains attempts made before the dataset was
 available and therefore includes `FileNotFoundError` output. Use the clean notebook
-for a fresh end-to-end Colab run; do not treat the retained notebook alone as proof
-of a successful current-commit run.
+for a fresh end-to-end Colab run. The clean notebook pins the validated code commit
+rather than pulling a floating `main`; do not treat the retained notebook alone as
+proof of a successful current-commit run.
 
 ## Main analysis
 

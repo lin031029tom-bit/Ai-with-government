@@ -1,6 +1,7 @@
 {
   "research_task": "retrospective severity classification conditional on a reported collision",
-  "git_commit": "e4f8722d4d07110a6df8c5534e5022de974c7777",
+  "git_commit": "8463fa843a9cd19f85f32db50f1d9008571d88e8",
+  "git_worktree_dirty": false,
   "dataset_sha256": "5e629f2d931948429580ed778b636b31aa0775630b3e4475727e39df8ee630e1",
   "dataset_rows": 503475,
   "dataset_columns": 69,
@@ -55,6 +56,7 @@
   ],
   "strict_expected_row_count": true,
   "strict_dissertation_feature_schema": true,
+  "strict_expected_dataset_hash": true,
   "traffic_merge_matched_records": 503369,
   "traffic_merge_match_rate": 0.9997894632305477,
   "permutation_executed": true,

@@ -11,7 +11,8 @@
   `python validate_analysis_ready_data.py --analysis-ready road_safety_analysis/analysis_ready_road_safety.csv`
 - Modelling command:
   `python road_safety_dissertation_coding.py --analysis-ready road_safety_analysis/analysis_ready_road_safety.csv --output-dir road_safety_coding_outputs --run-permutation --run-robustness`
-- Validated Git commit: `e4f8722d4d07110a6df8c5534e5022de974c7777`
+- Validated Git commit: `8463fa843a9cd19f85f32db50f1d9008571d88e8`
+- Git worktree dirty during validated run: **no**
 
 ## Scope
 
@@ -23,7 +24,10 @@ and robustness stages conditional on the prepared analysis-ready dataset.
 
 - Expected analysis-ready records: **503,475**
 - Complete dissertation model schema: **41/41 features present**
+- Exact validated dataset SHA-256: **passed**
 - Collision identifier uniqueness: **passed**
+- Finite numerical model features: **passed**
+- Both target classes present in every study year: **passed**
 - Target agreement with official collision severity: **passed**
 - Traffic-context merge: **503,369/503,475 (99.9789%)**
 - Study years: **2020-2024**
@@ -35,14 +39,14 @@ and robustness stages conditional on the prepared analysis-ready dataset.
 ## Automated checks
 
 - Python syntax compilation: **passed**
-- Unit tests: **17/17 passed**
+- Unit and command-line integration tests: **23/23 passed**
 - Main modelling command automatically repeated strict dataset validation: **passed**
 
 ## Primary 2024 test results
 
 | Model | Accuracy | Precision | Recall | F1 | ROC-AUC | Average precision |
 |---|---:|---:|---:|---:|---:|---:|
-| Dummy majority baseline | 0.7516 | 0.0000 | 0.0000 | 0.0000 | N/A | 0.2484 |
+| Dummy majority baseline | 0.7516 | 0.0000 | 0.0000 | 0.0000 | 0.5000 | 0.2484 |
 | Balanced logistic regression | 0.5976 | 0.3370 | 0.6409 | 0.4417 | 0.6612 | 0.3927 |
 | Random Forest | 0.6296 | 0.3531 | 0.5901 | 0.4418 | 0.6662 | 0.3930 |
 
@@ -63,11 +67,11 @@ The raw-to-analysis-ready data preparation pipeline is not included as a complet
 
 ## Validation boundary
 
-The metrics and generated artifacts in this report were produced from the
-validated code commit identified above. The subsequent documentation-and-artifact
-commit records this report and synchronizes `example_results`; it does not change
-the validated modelling code or tests. Later modelling-code changes require a
-fresh full-data run before they can be described as end-to-end validated.
-Automated tests can check syntax, validation, preprocessing and small synthetic
-model runs, but they do not replace validation against the 503,475-record
-analysis-ready dataset.
+The metrics and generated artifacts in this report were produced from the clean
+validated code commit identified above. The subsequent documentation, notebook
+and artifact commit records this report, pins the clean notebook to the validated
+code commit and synchronizes `example_results`; it does not change the validated
+modelling code or tests. Later modelling-code changes require a fresh full-data
+run before they can be described as end-to-end validated. Automated tests can
+check syntax, validation, preprocessing and small synthetic model runs, but they
+do not replace validation against the 503,475-record analysis-ready dataset.
