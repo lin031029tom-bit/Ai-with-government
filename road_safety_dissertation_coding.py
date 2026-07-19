@@ -13,7 +13,6 @@ occurred and been reported. It is not a model of future collision occurrence.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import importlib.metadata
 import json
 import platform
@@ -52,7 +51,7 @@ from analysis_schema import (
     TARGET,
     UNKNOWN_VALUE_MAP,
 )
-from validate_analysis_ready_data import validate
+from validate_analysis_ready_data import sha256_file, validate
 
 RANDOM_STATE = 42
 DEFAULT_ANALYSIS_READY = Path("road_safety_analysis/analysis_ready_road_safety.csv")
@@ -134,6 +133,15 @@ def validated_binary_target(frame: pd.DataFrame) -> pd.Series:
     if not found.issubset({0, 1}):
         raise ValueError(f"Target must be binary 0/1; found: {sorted(found)}")
     return target.astype("int8")
+
+
+def require_both_target_classes(target: pd.Series, split_name: str) -> None:
+    found = set(pd.to_numeric(target, errors="coerce").dropna().unique())
+    if found != {0, 1}:
+        raise ValueError(
+            f"{split_name} must contain both target classes 0 and 1; "
+            f"found: {sorted(found)}"
+        )
 
 
 def clean_feature_frame(
@@ -244,7 +252,7 @@ def make_models(numeric: Sequence[str], categorical: Sequence[str], seed: int) -
 def evaluate(name: str, y_true: pd.Series, probabilities: np.ndarray, threshold: float = 0.5) -> Dict:
     prediction = (probabilities >= threshold).astype(int)
     tn, fp, fn, tp = confusion_matrix(y_true, prediction, labels=[0, 1]).ravel()
-    variable_probability = len(np.unique(probabilities)) > 1
+    has_both_classes = set(pd.Series(y_true).unique()) == {0, 1}
     return {
         "model": name,
         "threshold": threshold,
@@ -252,8 +260,14 @@ def evaluate(name: str, y_true: pd.Series, probabilities: np.ndarray, threshold:
         "precision": precision_score(y_true, prediction, zero_division=0),
         "recall": recall_score(y_true, prediction, zero_division=0),
         "f1": f1_score(y_true, prediction, zero_division=0),
-        "roc_auc": roc_auc_score(y_true, probabilities) if variable_probability else np.nan,
-        "average_precision": average_precision_score(y_true, probabilities),
+        "roc_auc": (
+            roc_auc_score(y_true, probabilities) if has_both_classes else np.nan
+        ),
+        "average_precision": (
+            average_precision_score(y_true, probabilities)
+            if has_both_classes
+            else np.nan
+        ),
         "true_negative": int(tn),
         "false_positive": int(fp),
         "false_negative": int(fn),
@@ -452,6 +466,8 @@ def fit_main_models(
     X_test = clean_feature_frame(test, numeric, categorical)
     y_train = validated_binary_target(train)
     y_test = validated_binary_target(test)
+    require_both_target_classes(y_train, "Primary training split")
+    require_both_target_classes(y_test, "Primary 2024 test split")
 
     models = make_models(numeric, categorical, seed)
     rows: List[Dict] = []
@@ -540,14 +556,22 @@ def robustness_run(
     df: pd.DataFrame, train_years: Iterable[int], test_year: int, n: int,
     seed: int, label: str, require_all_features: bool = True
 ) -> Dict:
+    train_years = tuple(train_years)
     numeric, categorical = feature_lists(df, require_all=require_all_features)
-    train_all = df[df["collision_year"].isin(list(train_years))].copy()
+    train_all = df[df["collision_year"].isin(train_years)].copy()
     test = df[df["collision_year"] == test_year].copy()
+    if train_all.empty or test.empty:
+        raise ValueError(
+            f"{label} requires non-empty training years {train_years} "
+            f"and test year {test_year}"
+        )
     train = stratified_sample(train_all, n, seed)
     X_train = clean_feature_frame(train, numeric, categorical)
     X_test = clean_feature_frame(test, numeric, categorical)
     y_train = validated_binary_target(train)
     y_test = validated_binary_target(test)
+    require_both_target_classes(y_train, f"{label} training split")
+    require_both_target_classes(y_test, f"{label} test split")
     rf = make_models(numeric, categorical, seed)["Random Forest"]
     rf.fit(X_train, y_train)
     probability = rf.predict_proba(X_test)[:, 1]
@@ -588,24 +612,30 @@ def robustness_outputs(
     return result
 
 
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def current_git_commit() -> str | None:
+def current_git_state() -> Tuple[str | None, bool | None]:
+    repository_root = Path(__file__).resolve().parent
     completed = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
+        ["git", "-C", str(repository_root), "rev-parse", "HEAD"],
         check=False,
         capture_output=True,
         text=True,
     )
     if completed.returncode:
-        return None
-    return completed.stdout.strip() or None
+        return None, None
+    commit = completed.stdout.strip() or None
+    status = subprocess.run(
+        ["git", "-C", str(repository_root), "status", "--porcelain"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    dirty = None if status.returncode else bool(status.stdout.strip())
+    return commit, dirty
+
+
+def current_git_commit() -> str | None:
+    commit, _ = current_git_state()
+    return commit
 
 
 def dependency_versions() -> Dict[str, str]:
@@ -632,6 +662,7 @@ def run_information(
     run_robustness: bool,
     enforce_expected_rows: bool,
     enforce_expected_features: bool,
+    enforce_expected_hash: bool,
 ) -> Dict:
     numeric, categorical = feature_lists(
         df, require_all=enforce_expected_features
@@ -641,13 +672,16 @@ def run_information(
         if "traffic_merge_matched" in df.columns
         else None
     )
+    git_commit, git_worktree_dirty = current_git_state()
+    dataset_sha256 = df.attrs.get("dataset_sha256") or sha256_file(data_path)
     return {
         "research_task": (
             "retrospective severity classification conditional on a "
             "reported collision"
         ),
-        "git_commit": current_git_commit(),
-        "dataset_sha256": sha256_file(data_path),
+        "git_commit": git_commit,
+        "git_worktree_dirty": git_worktree_dirty,
+        "dataset_sha256": dataset_sha256,
         "dataset_rows": int(len(df)),
         "dataset_columns": int(len(df.columns)),
         "train_years": "2020–2023",
@@ -661,6 +695,7 @@ def run_information(
         "model_features": numeric + categorical,
         "strict_expected_row_count": enforce_expected_rows,
         "strict_dissertation_feature_schema": enforce_expected_features,
+        "strict_expected_dataset_hash": enforce_expected_hash,
         "traffic_merge_matched_records": (
             int(matched.sum()) if matched is not None else None
         ),
@@ -701,6 +736,7 @@ def main() -> None:
     mkdir(tables); mkdir(figures)
     enforce_expected_rows = not args.allow_row_count_difference
     enforce_expected_features = not args.allow_feature_set_difference
+    enforce_expected_hash = enforce_expected_rows and enforce_expected_features
     df = load_data(
         args.analysis_ready,
         enforce_expected_rows=enforce_expected_rows,
@@ -733,6 +769,7 @@ def main() -> None:
         args.run_robustness,
         enforce_expected_rows,
         enforce_expected_features,
+        enforce_expected_hash,
     )
     (tables / "run_information.json").write_text(
         json.dumps(run_info, indent=2) + "\n",

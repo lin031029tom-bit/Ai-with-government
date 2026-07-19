@@ -57,7 +57,8 @@ python -m py_compile \
 python -m unittest discover -s tests -v
 ```
 
-GitHub Actions runs the same checks on pushes and pull requests.
+GitHub Actions runs the same checks on pull requests and on pushes to `main`,
+avoiding duplicate branch and pull-request runs.
 
 ## Validate the prepared dataset
 
@@ -68,12 +69,15 @@ python validate_analysis_ready_data.py \
 
 The default validator is the strict dissertation-reproduction check. It requires
 the complete 41-feature model schema, collision identifiers and severity fields;
-checks row count, study years, identifier uniqueness, numerical types and the
-binary target; verifies that the target agrees with official collision severity;
-and reports traffic-context merge coverage.
+checks the exact validated dataset SHA-256, row count, study years, identifier
+uniqueness, finite numerical values and the binary target; verifies that every
+study year contains both target classes and that the target agrees with official
+collision severity; and reports traffic-context merge coverage.
 
 For a clearly documented alternative dataset, the row-count and complete-feature
-checks can be relaxed independently:
+checks can be relaxed independently. Either relaxation also disables the exact
+dissertation-dataset hash check while retaining the target, year, identifier and
+available-feature validity checks:
 
 ```bash
 python validate_analysis_ready_data.py \
@@ -108,7 +112,7 @@ on the modelling command for explicitly documented alternative data.
 
 The primary run uses a stratified 15,000-record sample from 2020-2023 and the full 2024 test set. It compares:
 
-- dummy majority baseline;
+- dummy majority baseline (constant-score ROC-AUC = 0.5000);
 - balanced logistic regression (`liblinear`, `class_weight='balanced'`);
 - Random Forest (100 trees, maximum depth 16, minimum leaf size 50 and balanced subsampling).
 
@@ -135,9 +139,10 @@ The robustness analysis includes:
 - training on 2020-2022 and testing on 2023;
 - excluding 2020 and training on 2021-2023 for the 2024 test.
 
-`run_information.json` records the exact Git commit, dataset SHA-256, row and
-column counts, selected features, Python and dependency versions, traffic merge
-coverage and which optional analyses were executed.
+`run_information.json` records the exact Git commit, whether the worktree was
+dirty, dataset SHA-256, row and column counts, selected features, Python and
+dependency versions, traffic merge coverage and which optional analyses were
+executed.
 
 ## Interpretation
 

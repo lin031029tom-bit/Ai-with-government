@@ -21,8 +21,9 @@ The dissertation documents the preparation logic used to create the file:
 
 The exact strict input schema is defined once in `analysis_schema.py` and is used
 by both the validator and the modelling entry point. The validator also confirms
-that the binary target agrees with official collision severity and reports the
-traffic-context merge rate.
+the validated dataset SHA-256, rejects non-finite numerical values, requires both
+target classes in every study year, confirms that the binary target agrees with
+official collision severity and reports the traffic-context merge rate.
 
 This repository therefore supports **model-level reproducibility conditional on
 the prepared dataset**. A complete, tested raw-file-to-analysis-ready preparation

@@ -4,11 +4,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from road_safety_dissertation_coding import (
     TARGET,
     clean_feature_frame,
+    evaluate,
     feature_lists,
     fit_main_models,
     local_authority_rate_table,
@@ -130,6 +132,46 @@ class ModellingWorkflowTests(unittest.TestCase):
         numeric, categorical = feature_lists(frame, require_all=False)
         self.assertEqual(numeric, ["month"])
         self.assertEqual(categorical, ["road_type"])
+
+    def test_constant_baseline_score_has_chance_roc_auc(self) -> None:
+        result = evaluate(
+            "constant baseline",
+            pd.Series([0, 0, 1, 1]),
+            np.zeros(4),
+        )
+
+        self.assertEqual(result["roc_auc"], 0.5)
+
+    def test_main_models_reject_single_class_test_split(self) -> None:
+        rows = []
+        for year in range(2020, 2025):
+            for index in range(12):
+                rows.append(
+                    {
+                        "collision_year": year,
+                        TARGET: 0 if year == 2024 else index % 2,
+                        "month": index % 12 + 1,
+                        "road_type": "single" if index % 3 else "dual",
+                    }
+                )
+        frame = pd.DataFrame(rows)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+            tables = output_dir / "tables"
+            figures = output_dir / "figures"
+            mkdir(tables)
+            mkdir(figures)
+
+            with self.assertRaisesRegex(ValueError, "both target classes"):
+                fit_main_models(
+                    frame,
+                    tables,
+                    figures,
+                    sample_size=32,
+                    seed=42,
+                    require_all_features=False,
+                )
 
 
 if __name__ == "__main__":

@@ -4,15 +4,18 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 from pathlib import Path
 from typing import Iterable
 
+import numpy as np
 import pandas as pd
 
 from analysis_schema import (
     CATEGORICAL_FEATURES,
     CORE_REQUIRED,
     DISSERTATION_REQUIRED,
+    EXPECTED_DATASET_SHA256,
     EXPECTED_ROWS,
     EXPECTED_YEARS,
     MODEL_FEATURES,
@@ -23,6 +26,14 @@ from analysis_schema import (
 
 def _format_items(items: Iterable[object]) -> str:
     return ", ".join(str(item) for item in sorted(items, key=str))
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _validated_binary(series: pd.Series, name: str) -> pd.Series:
@@ -93,12 +104,26 @@ def validate(
     path: Path,
     enforce_expected_rows: bool = True,
     enforce_expected_features: bool = True,
+    enforce_expected_hash: bool | None = None,
 ) -> pd.DataFrame:
     if not path.exists():
         raise FileNotFoundError(f"Analysis-ready dataset not found: {path.resolve()}")
 
+    if enforce_expected_hash is None:
+        enforce_expected_hash = enforce_expected_rows and enforce_expected_features
+    dataset_sha256 = sha256_file(path)
+    if enforce_expected_hash and dataset_sha256 != EXPECTED_DATASET_SHA256:
+        raise ValueError(
+            "Unexpected dataset SHA-256: "
+            f"{dataset_sha256}; expected {EXPECTED_DATASET_SHA256}. "
+            "Use the documented alternative-data flags only when intentionally "
+            "running a different prepared dataset."
+        )
+
     df = pd.read_csv(path, low_memory=False)
+    df.attrs["dataset_sha256"] = dataset_sha256
     print(f"File: {path.resolve()}")
+    print(f"SHA-256: {dataset_sha256}")
     print(f"Rows: {len(df):,}")
     print(f"Columns: {len(df.columns):,}")
 
@@ -149,6 +174,22 @@ def validate(
             f"expected {_format_items(EXPECTED_YEARS)}"
         )
 
+    target_by_year = pd.DataFrame({YEAR: year_values, TARGET: target})
+    single_class_years = {
+        year: sorted(group[TARGET].unique().tolist())
+        for year, group in target_by_year.groupby(YEAR)
+        if set(group[TARGET].unique()) != {0, 1}
+    }
+    if single_class_years:
+        details = "; ".join(
+            f"{year}: {_format_items(classes)}"
+            for year, classes in single_class_years.items()
+        )
+        raise ValueError(
+            "Each study year must contain both target classes 0 and 1; "
+            f"found {details}"
+        )
+
     collision_index = df["collision_index"]
     missing_identifier_count = int(
         (
@@ -176,6 +217,13 @@ def validate(
         if non_numeric_count:
             raise ValueError(
                 f"{column} contains {non_numeric_count:,} non-numeric values"
+            )
+        non_finite_count = int(
+            np.isinf(numeric.to_numpy(dtype=float, na_value=np.nan)).sum()
+        )
+        if non_finite_count:
+            raise ValueError(
+                f"{column} contains {non_finite_count:,} infinite values"
             )
 
     _validate_traffic_merge(df)
