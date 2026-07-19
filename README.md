@@ -24,6 +24,8 @@ The dissertation documents the data sources, unit of analysis, feature groups, l
 |---|---|
 | `analysis_schema.py` | Shared strict schema for the validated dissertation dataset |
 | `road_safety_dissertation_coding.py` | Main modelling, evaluation and robustness script |
+| `reproduce_dissertation.py` | One-command strict full-data run followed by result verification |
+| `verify_dissertation_results.py` | Compares generated dissertation tables with the verified reference outputs |
 | `road_safety_dissertation_coding.ipynb` | Retained Colab execution log, including setup and data-upload troubleshooting |
 | `road_safety_dissertation_coding_clean.ipynb` | Clean Colab wrapper for repeat runs and output review |
 | `validate_analysis_ready_data.py` | Automated checks for the prepared dataset |
@@ -53,8 +55,10 @@ preprocessing. They do not require the restricted analysis-ready dataset:
 ```bash
 python -m py_compile \
   analysis_schema.py \
+  reproduce_dissertation.py \
   road_safety_dissertation_coding.py \
-  validate_analysis_ready_data.py
+  validate_analysis_ready_data.py \
+  verify_dissertation_results.py
 python -m unittest discover -s tests -v
 ```
 
@@ -140,6 +144,23 @@ The robustness analysis includes:
 - alternative random seeds 123 and 2026;
 - training on 2020-2022 and testing on 2023;
 - excluding 2020 and training on 2021-2023 for the 2024 test.
+
+## One-command dissertation reproduction
+
+After placing the exact validated analysis-ready CSV on the machine, run the
+complete modelling, interpretation and robustness workflow and compare every
+key generated table with the verified dissertation outputs:
+
+```bash
+python reproduce_dissertation.py \
+  --analysis-ready road_safety_analysis/analysis_ready_road_safety.csv \
+  --output-dir road_safety_coding_outputs
+```
+
+The command fails if strict dataset validation fails, model execution fails, a
+required result is missing, or a generated core, robustness, threshold or
+permutation-importance table differs from the verified reference output beyond
+a numerical tolerance of `1e-9`.
 
 `run_information.json` records the exact Git commit, whether the worktree was
 dirty, dataset SHA-256, row and column counts, selected features, Python and
