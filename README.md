@@ -27,6 +27,7 @@ The dissertation documents the data sources, unit of analysis, feature groups, l
 | `road_safety_dissertation_coding.ipynb` | Retained Colab execution log, including setup and data-upload troubleshooting |
 | `road_safety_dissertation_coding_clean.ipynb` | Clean Colab wrapper for repeat runs and output review |
 | `validate_analysis_ready_data.py` | Automated checks for the prepared dataset |
+| `.python-version` | Supported Python interpreter version used for validation |
 | `requirements.txt` | Python dependencies |
 | `CODING_VALIDATION_REPORT.md` | Summary of execution and consistency checks |
 | `DATA_PREPARATION_NOTES.md` | Scope and expected structure of the prepared dataset |
@@ -35,13 +36,13 @@ The dissertation documents the data sources, unit of analysis, feature groups, l
 
 ## Installation
 
-The pinned dependency set was validated with Python 3.12.
+Use Python 3.12; `.python-version` records the supported interpreter.
 
 ```bash
-python -m venv .venv
+python3.12 -m venv .venv         # Windows: py -3.12 -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 ## Automated checks
