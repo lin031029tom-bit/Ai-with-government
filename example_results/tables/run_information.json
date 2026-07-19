@@ -1,6 +1,6 @@
 {
   "research_task": "retrospective severity classification conditional on a reported collision",
-  "git_commit": "8463fa843a9cd19f85f32db50f1d9008571d88e8",
+  "git_commit": "4eccd08b3a97cc1ea3c1f8c45e0c38c327a656f1",
   "git_worktree_dirty": false,
   "dataset_sha256": "5e629f2d931948429580ed778b636b31aa0775630b3e4475727e39df8ee630e1",
   "dataset_rows": 503475,

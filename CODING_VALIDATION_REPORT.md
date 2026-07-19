@@ -7,11 +7,9 @@
 - Dataset columns: 69
 - Dataset SHA-256: `5e629f2d931948429580ed778b636b31aa0775630b3e4475727e39df8ee630e1`
 - Python version: 3.12.13
-- Validation command:
-  `python validate_analysis_ready_data.py --analysis-ready road_safety_analysis/analysis_ready_road_safety.csv`
-- Modelling command:
-  `python road_safety_dissertation_coding.py --analysis-ready road_safety_analysis/analysis_ready_road_safety.csv --output-dir road_safety_coding_outputs --run-permutation --run-robustness`
-- Validated Git commit: `8463fa843a9cd19f85f32db50f1d9008571d88e8`
+- Full reproduction and verification command:
+  `python reproduce_dissertation.py --analysis-ready road_safety_analysis/analysis_ready_road_safety.csv --output-dir road_safety_coding_outputs`
+- Validated Git commit: `4eccd08b3a97cc1ea3c1f8c45e0c38c327a656f1`
 - Git worktree dirty during validated run: **no**
 
 ## Scope
@@ -39,8 +37,10 @@ and robustness stages conditional on the prepared analysis-ready dataset.
 ## Automated checks
 
 - Python syntax compilation: **passed**
-- Unit and command-line integration tests: **23/23 passed**
+- Unit and command-line integration tests: **25/25 passed**
 - Main modelling command automatically repeated strict dataset validation: **passed**
+- Generated tables matched the seven verified core, robustness, threshold and
+  interpretation outputs at `1e-9` numerical tolerance: **7/7 passed**
 
 ## Primary 2024 test results
 
@@ -67,11 +67,11 @@ The raw-to-analysis-ready data preparation pipeline is not included as a complet
 
 ## Validation boundary
 
-The metrics and generated artifacts in this report were produced from the clean
-validated code commit identified above. The subsequent documentation, notebook
-and artifact commit records this report, pins the clean notebook to the validated
-code commit and synchronizes `example_results`; it does not change the validated
-modelling code or tests. Later modelling-code changes require a fresh full-data
-run before they can be described as end-to-end validated. Automated tests can
-check syntax, validation, preprocessing and small synthetic model runs, but they
-do not replace validation against the 503,475-record analysis-ready dataset.
+The metrics and generated artifacts in this report were reproduced from the
+clean validated code commit identified above. The subsequent artifact commit
+records this report and synchronizes `example_results/run_information.json`; it
+does not change the validated modelling or verification code. Later modelling
+code changes require a fresh full-data run before they can be described as
+full-data validated. Automated tests check syntax, validation, preprocessing,
+small synthetic model runs and result-comparison failures, but they do not
+replace validation against the 503,475-record analysis-ready dataset.
