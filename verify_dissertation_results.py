@@ -19,6 +19,9 @@ CORE_TABLES = (
 ROBUSTNESS_TABLES = (
     "table_4_5_random_forest_robustness_checks.csv",
     "random_forest_threshold_sensitivity.csv",
+    "table_4_5_metric_uncertainty_2024.csv",
+    "table_4_5_paired_model_differences_2024.csv",
+    "table_4_5_rolling_origin_validation.csv",
 )
 
 INTERPRETATION_TABLES = (

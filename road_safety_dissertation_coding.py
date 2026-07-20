@@ -24,6 +24,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
+from sklearn.calibration import calibration_curve
 from sklearn.dummy import DummyClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
@@ -32,8 +33,10 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
     average_precision_score,
+    brier_score_loss,
     confusion_matrix,
     f1_score,
+    log_loss,
     precision_recall_curve,
     precision_score,
     recall_score,
@@ -54,6 +57,7 @@ from analysis_schema import (
 from validate_analysis_ready_data import sha256_file, validate
 
 RANDOM_STATE = 42
+DEFAULT_BOOTSTRAP_ITERATIONS = 1000
 DEFAULT_ANALYSIS_READY = Path("road_safety_analysis/analysis_ready_road_safety.csv")
 DEFAULT_OUTPUT_DIR = Path("road_safety_coding_outputs")
 
@@ -209,10 +213,10 @@ def stratified_sample(frame: pd.DataFrame, n: int | None, seed: int) -> pd.DataF
 
 def make_models(numeric: Sequence[str], categorical: Sequence[str], seed: int) -> Dict[str, Pipeline]:
     return {
-        "Dummy majority baseline": Pipeline(
+        "Dummy prevalence baseline": Pipeline(
             [
                 ("preprocessor", preprocessor(numeric, categorical, False)),
-                ("model", DummyClassifier(strategy="most_frequent")),
+                ("model", DummyClassifier(strategy="prior")),
             ]
         ),
         "Balanced logistic regression": Pipeline(
@@ -249,7 +253,12 @@ def make_models(numeric: Sequence[str], categorical: Sequence[str], seed: int) -
     }
 
 
-def evaluate(name: str, y_true: pd.Series, probabilities: np.ndarray, threshold: float = 0.5) -> Dict:
+def evaluate(
+    name: str,
+    y_true: pd.Series,
+    probabilities: np.ndarray,
+    threshold: float = 0.5,
+) -> Dict:
     prediction = (probabilities >= threshold).astype(int)
     tn, fp, fn, tp = confusion_matrix(y_true, prediction, labels=[0, 1]).ravel()
     has_both_classes = set(pd.Series(y_true).unique()) == {0, 1}
@@ -268,11 +277,158 @@ def evaluate(name: str, y_true: pd.Series, probabilities: np.ndarray, threshold:
             if has_both_classes
             else np.nan
         ),
+        "brier_score": brier_score_loss(y_true, probabilities),
+        "log_loss": (
+            log_loss(y_true, probabilities, labels=[0, 1])
+            if has_both_classes
+            else np.nan
+        ),
         "true_negative": int(tn),
         "false_positive": int(fp),
         "false_negative": int(fn),
         "true_positive": int(tp),
     }
+
+
+UNCERTAINTY_METRICS = (
+    "accuracy",
+    "precision",
+    "recall",
+    "f1",
+    "roc_auc",
+    "average_precision",
+    "brier_score",
+)
+
+
+def stratified_bootstrap_indices(
+    y_true: pd.Series,
+    iterations: int,
+    seed: int,
+) -> Iterable[np.ndarray]:
+    """Yield class-stratified bootstrap samples with the observed class counts."""
+    if iterations < 1:
+        raise ValueError("Bootstrap iterations must be at least 1")
+    y_array = np.asarray(y_true, dtype=int)
+    negative = np.flatnonzero(y_array == 0)
+    positive = np.flatnonzero(y_array == 1)
+    if not len(negative) or not len(positive):
+        raise ValueError("Bootstrap confidence intervals require both target classes")
+    rng = np.random.default_rng(seed)
+    for _ in range(iterations):
+        sampled = np.concatenate(
+            [
+                rng.choice(negative, size=len(negative), replace=True),
+                rng.choice(positive, size=len(positive), replace=True),
+            ]
+        )
+        rng.shuffle(sampled)
+        yield sampled
+
+
+def metric_uncertainty_outputs(
+    y_true: pd.Series,
+    probabilities: Dict[str, np.ndarray],
+    tables: Path,
+    iterations: int = DEFAULT_BOOTSTRAP_ITERATIONS,
+    seed: int = RANDOM_STATE,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Write paired stratified-bootstrap CIs for metrics and model differences."""
+    model_names = [
+        name
+        for name in ("Balanced logistic regression", "Random Forest")
+        if name in probabilities
+    ]
+    if len(model_names) != 2:
+        raise ValueError(
+            "Uncertainty analysis requires logistic-regression and Random-Forest "
+            "probabilities"
+        )
+
+    y_array = np.asarray(y_true, dtype=int)
+    probability_arrays = {
+        name: np.asarray(probabilities[name], dtype=float) for name in model_names
+    }
+    if any(len(values) != len(y_array) for values in probability_arrays.values()):
+        raise ValueError("Prediction probabilities must align with the test target")
+
+    point_estimates = {
+        name: evaluate(name, y_array, probability_arrays[name])
+        for name in model_names
+    }
+    bootstrap_values = {
+        name: {metric: [] for metric in UNCERTAINTY_METRICS}
+        for name in model_names
+    }
+    difference_values = {
+        metric: [] for metric in UNCERTAINTY_METRICS
+    }
+
+    for sampled in stratified_bootstrap_indices(y_true, iterations, seed):
+        sampled_y = y_array[sampled]
+        sampled_rows = {}
+        for name in model_names:
+            sampled_rows[name] = evaluate(
+                name,
+                sampled_y,
+                probability_arrays[name][sampled],
+            )
+            for metric in UNCERTAINTY_METRICS:
+                bootstrap_values[name][metric].append(sampled_rows[name][metric])
+        for metric in UNCERTAINTY_METRICS:
+            difference_values[metric].append(
+                sampled_rows["Random Forest"][metric]
+                - sampled_rows["Balanced logistic regression"][metric]
+            )
+
+    interval_rows = []
+    for name in model_names:
+        for metric in UNCERTAINTY_METRICS:
+            values = np.asarray(bootstrap_values[name][metric], dtype=float)
+            interval_rows.append(
+                {
+                    "model": name,
+                    "metric": metric,
+                    "estimate": point_estimates[name][metric],
+                    "ci_95_lower": np.quantile(values, 0.025),
+                    "ci_95_upper": np.quantile(values, 0.975),
+                    "bootstrap_iterations": iterations,
+                    "bootstrap_design": "class-stratified paired resampling",
+                }
+            )
+    intervals = pd.DataFrame(interval_rows)
+    intervals.to_csv(
+        tables / "table_4_5_metric_uncertainty_2024.csv",
+        index=False,
+    )
+
+    difference_rows = []
+    for metric in UNCERTAINTY_METRICS:
+        values = np.asarray(difference_values[metric], dtype=float)
+        estimate = (
+            point_estimates["Random Forest"][metric]
+            - point_estimates["Balanced logistic regression"][metric]
+        )
+        difference_rows.append(
+            {
+                "metric": metric,
+                "difference_random_forest_minus_logistic": estimate,
+                "ci_95_lower": np.quantile(values, 0.025),
+                "ci_95_upper": np.quantile(values, 0.975),
+                "bootstrap_iterations": iterations,
+                "interpretation": (
+                    "positive favours Random Forest"
+                    if metric != "brier_score"
+                    else "negative favours Random Forest"
+                ),
+            }
+        )
+    differences = pd.DataFrame(difference_rows)
+    differences.to_csv(
+        tables / "table_4_5_paired_model_differences_2024.csv",
+        index=False,
+    )
+    return intervals, differences
 
 
 def rate_table(df: pd.DataFrame, group: str) -> pd.DataFrame:
@@ -448,7 +604,7 @@ def fit_main_models(
     df: pd.DataFrame,
     tables: Path,
     figures: Path,
-    sample_size: int,
+    sample_size: int | None,
     seed: int,
     require_all_features: bool = True,
 ) -> Tuple[Dict[str, Pipeline], pd.DataFrame, pd.DataFrame, pd.Series, Dict[str, np.ndarray]]:
@@ -485,7 +641,7 @@ def fit_main_models(
         tables / "table_4_4_confusion_matrix_counts.csv", index=False
     )
 
-    fitted = performance[performance["model"] != "Dummy majority baseline"]
+    fitted = performance[performance["model"] != "Dummy prevalence baseline"]
     x = np.arange(len(fitted)); width = 0.15
     plt.figure(figsize=(9, 5.5))
     for i, metric in enumerate(["precision", "recall", "f1", "roc_auc", "average_precision"]):
@@ -513,6 +669,32 @@ def fit_main_models(
     plt.legend(); plt.tight_layout()
     plt.savefig(figures / "supplementary_precision_recall_curves.png", dpi=300); plt.close()
 
+    plt.figure(figsize=(7, 5.5))
+    for name in ["Balanced logistic regression", "Random Forest"]:
+        observed, predicted = calibration_curve(
+            y_test,
+            probabilities[name],
+            n_bins=10,
+            strategy="quantile",
+        )
+        plt.plot(
+            predicted,
+            observed,
+            marker="o",
+            label=(
+                f"{name} "
+                f"(Brier={brier_score_loss(y_test, probabilities[name]):.3f})"
+            ),
+        )
+    plt.plot([0, 1], [0, 1], "--", color="black", label="Perfect calibration")
+    plt.xlabel("Mean predicted probability")
+    plt.ylabel("Observed serious/fatal proportion")
+    plt.title("Probability Calibration on the 2024 Test Set")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(figures / "figure_4_7_calibration.png", dpi=300)
+    plt.close()
+
     rf_probability = probabilities["Random Forest"]
     threshold_rows = [evaluate("Random Forest", y_test, rf_probability, t) for t in [0.30, 0.40, 0.50, 0.60, 0.70]]
     pd.DataFrame(threshold_rows).to_csv(tables / "random_forest_threshold_sensitivity.csv", index=False)
@@ -526,7 +708,9 @@ def fit_main_models(
     for i in range(2):
         for j in range(2):
             plt.text(j, i, f"{cm[i, j]:,}", ha="center", va="center", color="white" if cm[i, j] < cm.max()/2 else "black")
-    plt.tight_layout(); plt.savefig(figures / "figure_4_8_confusion_matrix.png", dpi=300); plt.close()
+    plt.tight_layout()
+    plt.savefig(figures / "supplementary_confusion_matrix.png", dpi=300)
+    plt.close()
 
     return models, X_test, test, y_test, probabilities
 
@@ -549,7 +733,9 @@ def permutation_output(
     plt.figure(figsize=(8.5, 6)); plt.barh(top["feature"], top["importance_mean"], xerr=top["importance_sd"])
     plt.xlabel("Mean decrease in ROC-AUC after permutation")
     plt.title("Random Forest Permutation Importance")
-    plt.tight_layout(); plt.savefig(figures / "figure_4_7_permutation_importance.png", dpi=300); plt.close()
+    plt.tight_layout()
+    plt.savefig(figures / "supplementary_permutation_importance.png", dpi=300)
+    plt.close()
 
 
 def robustness_run(
@@ -612,6 +798,79 @@ def robustness_outputs(
     return result
 
 
+def rolling_origin_outputs(
+    df: pd.DataFrame,
+    tables: Path,
+    figures: Path,
+    seed: int = RANDOM_STATE,
+    require_all_features: bool = True,
+) -> pd.DataFrame:
+    """Evaluate both fitted models on successive future-year hold-outs."""
+    numeric, categorical = feature_lists(df, require_all=require_all_features)
+    rows: List[Dict] = []
+    for test_year in (2021, 2022, 2023, 2024):
+        train_years = tuple(range(2020, test_year))
+        train = df[df["collision_year"].isin(train_years)].copy()
+        test = df[df["collision_year"] == test_year].copy()
+        if train.empty or test.empty:
+            raise ValueError(
+                f"Rolling-origin fold requires training years {train_years} "
+                f"and test year {test_year}"
+            )
+        X_train = clean_feature_frame(train, numeric, categorical)
+        X_test = clean_feature_frame(test, numeric, categorical)
+        y_train = validated_binary_target(train)
+        y_test = validated_binary_target(test)
+        require_both_target_classes(y_train, f"Rolling fold {test_year} training")
+        require_both_target_classes(y_test, f"Rolling fold {test_year} test")
+        models = make_models(numeric, categorical, seed)
+        for name in ("Balanced logistic regression", "Random Forest"):
+            print(
+                f"Rolling-origin validation: {name}, "
+                f"train {train_years[0]}-{train_years[-1]}, test {test_year}..."
+            )
+            model = models[name]
+            model.fit(X_train, y_train)
+            probability = model.predict_proba(X_test)[:, 1]
+            row = evaluate(name, y_test, probability)
+            row.update(
+                {
+                    "train_years": "–".join(map(str, train_years)),
+                    "test_year": test_year,
+                    "training_records": len(train),
+                    "test_records": len(test),
+                    "seed": seed,
+                }
+            )
+            rows.append(row)
+
+    result = pd.DataFrame(rows)
+    result.to_csv(
+        tables / "table_4_5_rolling_origin_validation.csv",
+        index=False,
+    )
+
+    plt.figure(figsize=(8, 5.2))
+    for name, subset in result.groupby("model", sort=False):
+        subset = subset.sort_values("test_year")
+        plt.plot(
+            subset["test_year"],
+            subset["roc_auc"],
+            marker="o",
+            label=name,
+        )
+    plt.xticks([2021, 2022, 2023, 2024])
+    plt.ylim(0.60, 0.72)
+    plt.xlabel("Held-out test year")
+    plt.ylabel("ROC-AUC")
+    plt.title("Rolling-Origin Temporal Validation")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(figures / "figure_4_8_rolling_origin_auc.png", dpi=300)
+    plt.close()
+    return result
+
+
 def current_git_state() -> Tuple[str | None, bool | None]:
     repository_root = Path(__file__).resolve().parent
     completed = subprocess.run(
@@ -656,10 +915,12 @@ def dependency_versions() -> Dict[str, str]:
 def run_information(
     df: pd.DataFrame,
     data_path: Path,
-    sample_size: int,
+    sample_size: int | None,
     seed: int,
     run_permutation: bool,
     run_robustness: bool,
+    bootstrap_iterations: int,
+    run_temporal_validation: bool,
     enforce_expected_rows: bool,
     enforce_expected_features: bool,
     enforce_expected_hash: bool,
@@ -686,7 +947,19 @@ def run_information(
         "dataset_columns": int(len(df.columns)),
         "train_years": "2020–2023",
         "test_year": 2024,
-        "training_sample": sample_size,
+        "training_sample": (
+            "all available 2020–2023 records"
+            if sample_size is None
+            else sample_size
+        ),
+        "training_records": (
+            int(df["collision_year"].between(2020, 2023).sum())
+            if sample_size is None
+            else min(
+                sample_size,
+                int(df["collision_year"].between(2020, 2023).sum()),
+            )
+        ),
         "random_state": seed,
         "positive_class_test_prevalence": float(
             df.loc[df["collision_year"] == 2024, TARGET].mean()
@@ -704,6 +977,13 @@ def run_information(
         ),
         "permutation_executed": run_permutation,
         "robustness_executed": run_robustness,
+        "bootstrap_iterations": bootstrap_iterations,
+        "bootstrap_design": (
+            "class-stratified paired resampling"
+            if bootstrap_iterations
+            else None
+        ),
+        "rolling_origin_validation_executed": run_temporal_validation,
         "python_version": platform.python_version(),
         "dependency_versions": dependency_versions(),
     }
@@ -714,6 +994,11 @@ def main() -> None:
     parser.add_argument("--analysis-ready", type=Path, default=DEFAULT_ANALYSIS_READY)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--sample-size", type=int, default=15000)
+    parser.add_argument(
+        "--full-training",
+        action="store_true",
+        help="Use every available 2020–2023 record for the primary fitted models.",
+    )
     parser.add_argument("--seed", type=int, default=RANDOM_STATE)
     parser.add_argument(
         "--allow-row-count-difference",
@@ -730,6 +1015,23 @@ def main() -> None:
     )
     parser.add_argument("--run-robustness", action="store_true", help="Run the seven additional RF checks (slower).")
     parser.add_argument("--run-permutation", action="store_true", help="Run permutation importance (slower).")
+    parser.add_argument(
+        "--bootstrap-iterations",
+        type=int,
+        default=0,
+        help=(
+            "Number of class-stratified paired bootstrap iterations for 95% "
+            "metric and model-difference intervals."
+        ),
+    )
+    parser.add_argument(
+        "--run-temporal-validation",
+        action="store_true",
+        help=(
+            "Run full-data rolling-origin validation with 2021–2024 held-out "
+            "test years."
+        ),
+    )
     args = parser.parse_args()
 
     tables = args.output_dir / "tables"; figures = args.output_dir / "figures"
@@ -743,14 +1045,23 @@ def main() -> None:
         enforce_expected_features=enforce_expected_features,
     )
     descriptive_outputs(df, tables, figures)
+    primary_sample_size = None if args.full_training else args.sample_size
     models, X_test, test, y_test, probabilities = fit_main_models(
         df,
         tables,
         figures,
-        args.sample_size,
+        primary_sample_size,
         args.seed,
         require_all_features=enforce_expected_features,
     )
+    if args.bootstrap_iterations:
+        metric_uncertainty_outputs(
+            y_test,
+            probabilities,
+            tables,
+            iterations=args.bootstrap_iterations,
+            seed=args.seed,
+        )
     if args.run_permutation:
         permutation_output(models["Random Forest"], X_test, y_test, tables, figures, seed=args.seed)
     if args.run_robustness:
@@ -759,14 +1070,24 @@ def main() -> None:
             tables,
             require_all_features=enforce_expected_features,
         )
+    if args.run_temporal_validation:
+        rolling_origin_outputs(
+            df,
+            tables,
+            figures,
+            seed=args.seed,
+            require_all_features=enforce_expected_features,
+        )
 
     run_info = run_information(
         df,
         args.analysis_ready,
-        args.sample_size,
+        primary_sample_size,
         args.seed,
         args.run_permutation,
         args.run_robustness,
+        args.bootstrap_iterations,
+        args.run_temporal_validation,
         enforce_expected_rows,
         enforce_expected_features,
         enforce_expected_hash,

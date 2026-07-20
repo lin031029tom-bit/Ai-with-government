@@ -52,6 +52,10 @@ def main() -> None:
         str(args.analysis_ready),
         "--output-dir",
         str(args.output_dir),
+        "--full-training",
+        "--bootstrap-iterations",
+        "1000",
+        "--run-temporal-validation",
         "--run-permutation",
         "--run-robustness",
     ]

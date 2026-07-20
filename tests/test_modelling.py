@@ -14,7 +14,9 @@ from road_safety_dissertation_coding import (
     feature_lists,
     fit_main_models,
     local_authority_rate_table,
+    metric_uncertainty_outputs,
     mkdir,
+    rolling_origin_outputs,
     validated_binary_target,
 )
 
@@ -85,7 +87,7 @@ class ModellingWorkflowTests(unittest.TestCase):
             self.assertEqual(
                 set(probabilities),
                 {
-                    "Dummy majority baseline",
+                    "Dummy prevalence baseline",
                     "Balanced logistic regression",
                     "Random Forest",
                 },
@@ -94,6 +96,86 @@ class ModellingWorkflowTests(unittest.TestCase):
                 (tables / "table_4_3_model_performance_2024_test.csv").exists()
             )
             self.assertTrue((figures / "figure_4_6_roc_curves.png").exists())
+            self.assertTrue((figures / "figure_4_7_calibration.png").exists())
+
+    def test_uncertainty_outputs_use_paired_stratified_bootstrap(self) -> None:
+        y_true = pd.Series([0, 0, 0, 0, 1, 1, 1, 1])
+        probabilities = {
+            "Balanced logistic regression": np.array(
+                [0.1, 0.2, 0.3, 0.4, 0.6, 0.7, 0.8, 0.9]
+            ),
+            "Random Forest": np.array(
+                [0.05, 0.15, 0.25, 0.35, 0.65, 0.75, 0.85, 0.95]
+            ),
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tables = Path(temp_dir)
+            intervals, differences = metric_uncertainty_outputs(
+                y_true,
+                probabilities,
+                tables,
+                iterations=25,
+                seed=42,
+            )
+
+            self.assertEqual(
+                set(intervals["model"]),
+                {
+                    "Balanced logistic regression",
+                    "Random Forest",
+                },
+            )
+            self.assertEqual(set(intervals["bootstrap_iterations"]), {25})
+            self.assertEqual(len(differences), 7)
+            self.assertTrue(
+                (tables / "table_4_5_metric_uncertainty_2024.csv").exists()
+            )
+            self.assertTrue(
+                (tables / "table_4_5_paired_model_differences_2024.csv").exists()
+            )
+
+    def test_rolling_origin_outputs_use_only_prior_years(self) -> None:
+        rows = []
+        for year in range(2020, 2025):
+            for index in range(12):
+                rows.append(
+                    {
+                        "collision_year": year,
+                        TARGET: index % 2,
+                        "month": index % 12 + 1,
+                        "speed_limit": 30 if index % 2 else 60,
+                        "road_type": "single" if index % 3 else "dual",
+                    }
+                )
+        frame = pd.DataFrame(rows)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+            tables = output_dir / "tables"
+            figures = output_dir / "figures"
+            mkdir(tables)
+            mkdir(figures)
+            result = rolling_origin_outputs(
+                frame,
+                tables,
+                figures,
+                seed=42,
+                require_all_features=False,
+            )
+
+            self.assertEqual(set(result["test_year"]), {2021, 2022, 2023, 2024})
+            self.assertEqual(len(result), 8)
+            self.assertEqual(
+                result.loc[result["test_year"] == 2021, "train_years"].unique().tolist(),
+                ["2020"],
+            )
+            self.assertTrue(
+                (tables / "table_4_5_rolling_origin_validation.csv").exists()
+            )
+            self.assertTrue(
+                (figures / "figure_4_8_rolling_origin_auc.png").exists()
+            )
 
     def test_local_authority_table_applies_the_documented_minimum_count(self) -> None:
         frame = pd.DataFrame(
