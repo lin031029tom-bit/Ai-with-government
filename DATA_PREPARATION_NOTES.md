@@ -19,4 +19,16 @@ The dissertation documents the preparation logic used to create the file:
 7. exclude target-defining and post-outcome leakage fields;
 8. retain the analysis fields required by the modelling script.
 
-This repository therefore supports **model-level reproducibility conditional on the prepared dataset**. The empty `prepare_analysis_ready_data.py` file from the earlier repository version should be deleted unless a complete, tested raw-data preparation implementation is added.
+The exact strict input schema is defined once in `analysis_schema.py` and is used
+by both the validator and the modelling entry point. The validator also confirms
+the validated dataset SHA-256, rejects non-finite numerical values, requires both
+target classes in every study year, confirms that the binary target agrees with
+official collision severity and reports the traffic-context merge rate.
+
+This repository therefore supports **one-command, model-level reproducibility
+conditional on the prepared dataset**. `reproduce_dissertation.py` strictly
+validates the supplied file, executes the complete modelling, robustness and
+interpretation workflow, and compares the key generated tables with the verified
+dissertation results. A complete, tested raw-file-to-analysis-ready preparation
+implementation remains outside the public repository and should not be implied
+until that separate preparation pipeline is added and validated.

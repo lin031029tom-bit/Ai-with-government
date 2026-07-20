@@ -1,0 +1,7 @@
+road_type,road_type_label,collisions,serious_or_fatal,slight,serious_fatal_rate_pct
+1,Roundabout,29963,4935,25028,16.47
+2,One way street,11118,1852,9266,16.66
+3,Dual carriageway,74715,16568,58147,22.17
+6,Single carriageway,365844,91477,274367,25.0
+7,Slip road,8722,1504,7218,17.24
+9,Unknown,13113,1132,11981,8.63

@@ -1,0 +1,7 @@
+light_conditions,light_conditions_label,collisions,serious_or_fatal,slight,serious_fatal_rate_pct
+-1,Unknown,19,7,12,36.84
+1,Daylight,359837,80405,279432,22.34
+4,Darkness - lights lit,104155,25269,78886,24.26
+5,Darkness - lights unlit,3671,1042,2629,28.38
+6,Darkness - no lighting,26591,9104,17487,34.24
+7,Darkness - lighting unknown,9202,1641,7561,17.83

@@ -1,4 +1,0 @@
-model,accuracy,precision,recall,f1,roc_auc,average_precision,tn,fp,fn,tp
-Dummy majority baseline,0.7516,0.0,0.0,0.0,,0.2484,75858,0,25069,0
-Balanced logistic regression,0.5971,0.3368,0.6419,0.4418,0.6613,0.3928,44168,31690,8977,16092
-Random Forest,0.6303,0.354,0.592,0.443,0.6663,0.3933,48771,27087,10228,14841

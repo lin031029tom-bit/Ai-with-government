@@ -1,0 +1,15 @@
+model,metric,estimate,ci_95_lower,ci_95_upper,bootstrap_iterations,bootstrap_design
+Balanced logistic regression,accuracy,0.6977221159848207,0.6953238479296917,0.7002786667591427,1000,class-stratified paired resampling
+Balanced logistic regression,precision,0.38854051395549,0.38364390489548644,0.3933740620771659,1000,class-stratified paired resampling
+Balanced logistic regression,recall,0.3781562886433444,0.37221169571981333,0.3837428696796841,1000,class-stratified paired resampling
+Balanced logistic regression,f1,0.383278078757985,0.37824871148358324,0.38809196872488777,1000,class-stratified paired resampling
+Balanced logistic regression,roc_auc,0.6518590282741381,0.6481666220677791,0.6555152560104194,1000,class-stratified paired resampling
+Balanced logistic regression,average_precision,0.3828783215082082,0.3779360544041499,0.38784626399033967,1000,class-stratified paired resampling
+Balanced logistic regression,brier_score,0.20123067422912946,0.20044115582611774,0.20206095195969156,1000,class-stratified paired resampling
+Random Forest,accuracy,0.6273247000307153,0.6246685723344596,0.6300893219851973,1000,class-stratified paired resampling
+Random Forest,precision,0.358757825519074,0.3559513359199295,0.3617261171269674,1000,class-stratified paired resampling
+Random Forest,recall,0.6354860584785991,0.6297010251705294,0.6416689935777254,1000,class-stratified paired resampling
+Random Forest,f1,0.4586110111550918,0.4550882220717101,0.46240759902115713,1000,class-stratified paired resampling
+Random Forest,roc_auc,0.6877370683442213,0.6841027175446873,0.6914897841697483,1000,class-stratified paired resampling
+Random Forest,average_precision,0.42265816785670696,0.4174731763819646,0.4282145247133093,1000,class-stratified paired resampling
+Random Forest,brier_score,0.2211321858655747,0.2204735841786478,0.22175139821865533,1000,class-stratified paired resampling
