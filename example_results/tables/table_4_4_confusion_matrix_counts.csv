@@ -1,0 +1,4 @@
+model,true_negative,false_positive,false_negative,true_positive
+Dummy prevalence baseline,75858,0,25069,0
+Balanced logistic regression,60939,14919,15589,9480
+Random Forest,47383,28475,9138,15931
