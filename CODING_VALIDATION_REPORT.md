@@ -2,14 +2,13 @@
 
 ## Validation metadata
 
-- Validation date: 20 July 2026
+- Validation date: 23 August 2026
 - Dataset records: 503,475
 - Dataset columns: 69
 - Dataset SHA-256: `5e629f2d931948429580ed778b636b31aa0775630b3e4475727e39df8ee630e1`
 - Python version: 3.12.13
-- Full reproduction and verification command:
-  `python reproduce_dissertation.py --analysis-ready road_safety_analysis/analysis_ready_road_safety.csv --output-dir road_safety_coding_outputs`
-- Validated Git commit: `edaa21442d1d21d8457914a72303a089e2899da1`
+- Full reproduction and verification command: `python reproduce_dissertation.py`
+- Validated modelling/data commit: `2148d0950fe026f66dd5ea1810807af32ce91af1`
 - Git worktree dirty during validated run: **no**
 
 ## Scope
@@ -39,7 +38,8 @@ on the prepared analysis-ready dataset.
 ## Automated checks
 
 - Python syntax compilation: **passed**
-- Unit, command-line and reproduction-orchestration tests: **29/29 passed**
+- Unit, command-line, notebook-quality and reproduction-orchestration tests:
+  **35/35 passed**
 - Main modelling command automatically repeated strict dataset validation: **passed**
 - Primary models fitted on every available 2020-2023 record: **passed**
 - Paired class-stratified bootstrap resamples: **1,000**
@@ -50,6 +50,9 @@ on the prepared analysis-ready dataset.
 - Generated tables matched all core, uncertainty, temporal, robustness,
   threshold and interpretation outputs at `1e-9` numerical tolerance:
   **10/10 passed**
+- The clean Colab notebook pins the validated data-publication commit, verifies
+  the published gzip archive and invokes the same one-command reproduction:
+  **passed**
 
 ## Primary 2024 test results
 
@@ -87,15 +90,19 @@ on the prepared analysis-ready dataset.
 
 ## Remaining reproducibility limitation
 
-The raw-to-analysis-ready data preparation pipeline is not included as a complete tested script. The README and dissertation therefore describe the repository accurately as reproducing modelling, evaluation and robustness from the prepared dataset.
+The raw-to-analysis-ready data preparation pipeline is not included as a complete
+tested script. The analysis-ready dataset itself is published with checksums,
+provenance and licence attribution, and the README and dissertation accurately
+describe the repository as reproducing modelling, evaluation and robustness from
+that prepared dataset.
 
 ## Validation boundary
 
-The metrics and generated artifacts in this report were reproduced from the
-clean validated code commit identified above. The subsequent artifact commit
-records this report and synchronizes `example_results/`; it does not change the
-validated modelling or verification code. Later modelling-code changes require
-a fresh full-data run before they can be described as validated. Automated tests
-check syntax, validation, preprocessing, small synthetic model runs,
+The metrics and generated artifacts in this report were reproduced from the clean
+validated modelling/data commit identified above. Subsequent changes limited to
+notebook guidance, documentation or tests do not change the validated model or
+dataset. Any later modelling, schema, validation or dependency change requires a
+fresh full-data run before it can be described as validated. Automated tests check
+syntax, notebook integrity, validation, preprocessing, small synthetic model runs,
 orchestration and result-comparison failures, but they do not replace validation
 against the 503,475-record analysis-ready dataset.

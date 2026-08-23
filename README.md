@@ -30,8 +30,8 @@ The dissertation documents the data sources, unit of analysis, feature groups, l
 | `road_safety_dissertation_coding.py` | Main modelling, evaluation and robustness script |
 | `reproduce_dissertation.py` | One-command strict full-data run followed by result verification |
 | `verify_dissertation_results.py` | Compares generated dissertation tables with the verified reference outputs |
-| `road_safety_dissertation_coding.ipynb` | Retained Colab execution log, including setup and data-upload troubleshooting |
-| `road_safety_dissertation_coding_clean.ipynb` | Clean Colab wrapper for repeat runs and output review |
+| `road_safety_dissertation_coding_clean.ipynb` | Clean Colab wrapper pinned to the validated data-publication snapshot; verifies the archive and runs the one-command reproduction |
+| `archive/` | Historical pre-publication Colab log retained for provenance and clearly separated from the runnable workflow |
 | `validate_analysis_ready_data.py` | Automated checks for the prepared dataset |
 | `.python-version` | Supported Python interpreter version used for validation |
 | `requirements.txt` | Python dependencies |
@@ -108,15 +108,16 @@ python validate_analysis_ready_data.py \
 
 ## Validation status
 
-`CODING_VALIDATION_REPORT.md` identifies the exact commit used for the documented
-full-data run. Later commits should not be described as end-to-end validated until
-the analysis is rerun with the prepared dataset and the report is updated.
+`CODING_VALIDATION_REPORT.md` identifies the exact clean commit used for the
+documented full-data run. Later modelling-code changes should not be described as
+end-to-end validated until the analysis is rerun with the published dataset and the
+report is updated.
 
-The retained executed notebook contains attempts made before the dataset was
-available and therefore includes `FileNotFoundError` output. Use the clean notebook
-for a fresh end-to-end Colab run. The clean notebook pins the validated code commit
-rather than pulling a floating `main`; do not treat the retained notebook alone as
-proof of a successful current-commit run.
+Use `road_safety_dissertation_coding_clean.ipynb` for a fresh end-to-end Colab run.
+It pins the validated data-publication commit, checks the published gzip archive and
+runs `reproduce_dissertation.py`; it does not require a manual data upload. The
+earlier failed execution log has been moved to `archive/` and is retained only for
+provenance.
 
 ## Main analysis
 
