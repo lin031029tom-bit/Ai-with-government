@@ -172,9 +172,20 @@ complete modelling, interpretation and robustness workflow and compare every
 key generated table with the verified dissertation outputs:
 
 ```bash
+python reproduce_dissertation.py
+```
+
+The zero-argument command uses
+`road_safety_analysis/analysis_ready_road_safety.csv`, writes to
+`road_safety_coding_outputs`, checks that Python 3.12 and all pinned dependencies
+are available, and refuses to start if the dataset or verified reference tables
+are missing. Paths supplied explicitly are resolved relative to the directory
+from which the command is invoked:
+
+```bash
 python reproduce_dissertation.py \
-  --analysis-ready road_safety_analysis/analysis_ready_road_safety.csv \
-  --output-dir road_safety_coding_outputs
+  --analysis-ready /path/to/analysis_ready_road_safety.csv \
+  --output-dir /path/to/dissertation_results
 ```
 
 The command fails if strict dataset validation fails, model execution fails, a
