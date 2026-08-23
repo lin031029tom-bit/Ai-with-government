@@ -8,9 +8,13 @@ This repository implements a **retrospective collision-severity classification**
 
 ## Reproducibility scope
 
-The public repository reproduces the **modelling, evaluation and robustness stages** once the prepared analysis-ready dataset is supplied. It does not independently reconstruct the complete analytical dataset from the raw Department for Transport files.
+The public repository reproduces the **modelling, evaluation and robustness stages**
+from a published, prepared analysis-ready dataset. It does not independently
+reconstruct that analytical dataset from the raw Department for Transport files.
 
-The raw files and the large analysis-ready dataset are not redistributed. Place the prepared file at:
+The compressed prepared dataset is versioned at
+`published_data/analysis_ready_road_safety.csv.gz`. The zero-argument reproduction
+command extracts it automatically to the ignored working path:
 
 ```text
 road_safety_analysis/analysis_ready_road_safety.csv
@@ -33,6 +37,7 @@ The dissertation documents the data sources, unit of analysis, feature groups, l
 | `requirements.txt` | Python dependencies |
 | `CODING_VALIDATION_REPORT.md` | Summary of execution and consistency checks |
 | `DATA_PREPARATION_NOTES.md` | Scope and expected structure of the prepared dataset |
+| `published_data/` | Compressed analysis-ready dataset, checksums, provenance and licence information |
 | `example_results/tables/` | Verified descriptive, model, robustness, interpretation and provenance outputs |
 | `example_results/figures/` | Verified descriptive, discrimination, calibration and rolling-validation figures |
 | `published_results/` | Full-data tables, figures and provenance regenerated from the merged `main` workflow |
@@ -43,8 +48,8 @@ The browsable result package is available in [`published_results/`](published_re
 It contains the 17 machine-readable tables and 11 figures produced by the strict
 full-data run on 23 August 2026. The accompanying `run_information.json` records
 the source commit, dataset SHA-256, row count, feature schema, training size,
-bootstrap design and dependency versions. The large analysis-ready input CSV is
-not included in the package.
+bootstrap design and dependency versions. The matching compressed analysis-ready
+input is available in `published_data/`.
 
 ## Installation
 
@@ -177,20 +182,19 @@ The complete validation design includes:
 
 ## One-command dissertation reproduction
 
-After placing the exact validated analysis-ready CSV on the machine, run the
-complete modelling, interpretation and robustness workflow and compare every
-key generated table with the verified dissertation outputs:
+Run the complete modelling, interpretation and robustness workflow and compare
+every key generated table with the verified dissertation outputs:
 
 ```bash
 python reproduce_dissertation.py
 ```
 
-The zero-argument command uses
-`road_safety_analysis/analysis_ready_road_safety.csv`, writes to
+The zero-argument command extracts `published_data/analysis_ready_road_safety.csv.gz`
+when the working CSV is absent, uses the extracted file, writes to
 `road_safety_coding_outputs`, checks that Python 3.12 and all pinned dependencies
-are available, and refuses to start if the dataset or verified reference tables
-are missing. Paths supplied explicitly are resolved relative to the directory
-from which the command is invoked:
+are available, and refuses to start if the dataset archive or verified reference
+tables are missing. Paths supplied explicitly are resolved relative to the
+directory from which the command is invoked:
 
 ```bash
 python reproduce_dissertation.py \

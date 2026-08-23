@@ -1,6 +1,9 @@
 # Data preparation scope
 
-The public repository does not redistribute the raw Department for Transport files or the large analysis-ready dataset.
+The public repository does not redistribute the original raw Department for
+Transport files. It does redistribute the derived analysis-ready dataset as
+`published_data/analysis_ready_road_safety.csv.gz`, together with SHA-256 values,
+source attribution, licensing information and the documented transformation scope.
 
 The modelling script expects:
 
@@ -25,10 +28,10 @@ the validated dataset SHA-256, rejects non-finite numerical values, requires bot
 target classes in every study year, confirms that the binary target agrees with
 official collision severity and reports the traffic-context merge rate.
 
-This repository therefore supports **one-command, model-level reproducibility
-conditional on the prepared dataset**. `reproduce_dissertation.py` strictly
-validates the supplied file, executes the complete modelling, robustness and
-interpretation workflow, and compares the key generated tables with the verified
-dissertation results. A complete, tested raw-file-to-analysis-ready preparation
-implementation remains outside the public repository and should not be implied
-until that separate preparation pipeline is added and validated.
+This repository therefore supports **one-command, model-level reproducibility**.
+`reproduce_dissertation.py` extracts the published archive when necessary,
+strictly validates the resulting CSV, executes the complete modelling, robustness
+and interpretation workflow, and compares the key generated tables with the
+verified dissertation results. A complete, tested raw-file-to-analysis-ready
+preparation implementation remains outside the public repository and should not
+be implied until that separate preparation pipeline is added and validated.

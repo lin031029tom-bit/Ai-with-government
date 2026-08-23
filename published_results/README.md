@@ -35,7 +35,7 @@ verified reference outputs.
 - `figures/`: 11 PNG files covering descriptive distributions, model performance,
   ROC curves, calibration, rolling-origin performance and supplementary diagnostics.
 
-The 156 MB analysis-ready input CSV is deliberately excluded from this result
-package. It exceeds GitHub's normal per-file upload limit and the dissertation
-currently states that the prepared dataset is not redistributed. Reproduction
-therefore still requires a local copy whose SHA-256 matches the value above.
+The matching 156 MB analysis-ready input CSV is distributed separately as the
+33 MB archive `published_data/analysis_ready_road_safety.csv.gz`. The reproduction
+command extracts and validates it automatically. Its uncompressed SHA-256 must
+match the value above.

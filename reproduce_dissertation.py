@@ -4,14 +4,17 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import importlib.util
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 
 DEFAULT_DATASET = Path("road_safety_analysis/analysis_ready_road_safety.csv")
+DEFAULT_DATA_ARCHIVE = Path("published_data/analysis_ready_road_safety.csv.gz")
 REQUIRED_MODULES = {
     "pandas": "pandas",
     "numpy": "numpy",
@@ -81,6 +84,30 @@ def validate_runtime() -> None:
         )
 
 
+def materialise_default_dataset(repository_root: Path) -> Path:
+    """Extract the published dataset once when the default CSV is not yet present."""
+    destination = repository_root / DEFAULT_DATASET
+    if destination.is_file():
+        return destination
+
+    archive = repository_root / DEFAULT_DATA_ARCHIVE
+    if not archive.is_file():
+        return destination
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_name(destination.name + ".tmp")
+    try:
+        with gzip.open(archive, "rb") as source, temporary.open("wb") as target:
+            shutil.copyfileobj(source, target)
+        temporary.replace(destination)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+    print(f"Extracted published dataset: {archive} -> {destination}")
+    return destination
+
+
 def main() -> None:
     args = parse_args()
     repository_root = Path(__file__).resolve().parent
@@ -88,8 +115,9 @@ def main() -> None:
     analysis_script = repository_root / "road_safety_dissertation_coding.py"
     verification_script = repository_root / "verify_dissertation_results.py"
 
+    validate_runtime()
     analysis_ready = (
-        repository_root / DEFAULT_DATASET
+        materialise_default_dataset(repository_root)
         if args.analysis_ready is None
         else resolve_from_invocation(args.analysis_ready, invocation_dir)
     )
@@ -100,7 +128,6 @@ def main() -> None:
         else resolve_from_invocation(args.reference_dir, invocation_dir)
     )
 
-    validate_runtime()
     if not analysis_ready.is_file():
         raise FileNotFoundError(
             f"Analysis-ready dataset not found: {analysis_ready}\n"

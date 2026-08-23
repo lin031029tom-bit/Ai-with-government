@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import os
 import subprocess
 import tempfile
@@ -131,6 +132,25 @@ class ReproduceDissertationTests(unittest.TestCase):
             reproduce_dissertation.main()
 
         mock_run.assert_not_called()
+
+    def test_materialises_the_published_gzip_dataset(self) -> None:
+        repository_root = self.root / "repository"
+        archive = repository_root / reproduce_dissertation.DEFAULT_DATA_ARCHIVE
+        archive.parent.mkdir(parents=True)
+        expected = b"collision_index,collision_year\nexample,2024\n"
+        with gzip.open(archive, "wb") as compressed:
+            compressed.write(expected)
+
+        destination = reproduce_dissertation.materialise_default_dataset(
+            repository_root
+        )
+
+        self.assertEqual(
+            destination,
+            repository_root / reproduce_dissertation.DEFAULT_DATASET,
+        )
+        self.assertEqual(destination.read_bytes(), expected)
+        self.assertFalse(destination.with_name(destination.name + ".tmp").exists())
 
 
 if __name__ == "__main__":
