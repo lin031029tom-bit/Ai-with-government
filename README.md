@@ -35,6 +35,16 @@ The dissertation documents the data sources, unit of analysis, feature groups, l
 | `DATA_PREPARATION_NOTES.md` | Scope and expected structure of the prepared dataset |
 | `example_results/tables/` | Verified descriptive, model, robustness, interpretation and provenance outputs |
 | `example_results/figures/` | Verified descriptive, discrimination, calibration and rolling-validation figures |
+| `published_results/` | Full-data tables, figures and provenance regenerated from the merged `main` workflow |
+
+## Published full-data results
+
+The browsable result package is available in [`published_results/`](published_results/README.md).
+It contains the 17 machine-readable tables and 11 figures produced by the strict
+full-data run on 23 August 2026. The accompanying `run_information.json` records
+the source commit, dataset SHA-256, row count, feature schema, training size,
+bootstrap design and dependency versions. The large analysis-ready input CSV is
+not included in the package.
 
 ## Installation
 
