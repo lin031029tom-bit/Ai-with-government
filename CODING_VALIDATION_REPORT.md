@@ -2,13 +2,13 @@
 
 ## Validation metadata
 
-- Validation date: 23 August 2026
+- Validation date: 31 August 2026
 - Dataset records: 503,475
 - Dataset columns: 69
 - Dataset SHA-256: `5e629f2d931948429580ed778b636b31aa0775630b3e4475727e39df8ee630e1`
 - Python version: 3.12.13
 - Full reproduction and verification command: `python reproduce_dissertation.py`
-- Validated modelling/data commit: `2148d0950fe026f66dd5ea1810807af32ce91af1`
+- Validated modelling/data commit: `e5d0ccef9c3b7a638b5d9cc4dae3c8fe89383ce3`
 - Git worktree dirty during validated run: **no**
 
 ## Scope
@@ -39,7 +39,7 @@ on the prepared analysis-ready dataset.
 
 - Python syntax compilation: **passed**
 - Unit, command-line, notebook-quality and reproduction-orchestration tests:
-  **35/35 passed**
+  **36/36 passed**
 - Main modelling command automatically repeated strict dataset validation: **passed**
 - Primary models fitted on every available 2020-2023 record: **passed**
 - Paired class-stratified bootstrap resamples: **1,000**
@@ -53,6 +53,10 @@ on the prepared analysis-ready dataset.
 - The clean Colab notebook pins the validated data-publication commit, verifies
   the published gzip archive and invokes the same one-command reproduction:
   **passed**
+- The Windows reproducibility bundle provides a full pip lock file, a Conda
+  environment file and a PowerShell helper for fresh Windows runs: **added**
+- `run_information.json` now records SciPy, joblib, threadpoolctl and platform
+  metadata in addition to the direct dissertation dependencies: **passed**
 
 ## Primary 2024 test results
 
@@ -100,9 +104,9 @@ that prepared dataset.
 
 The metrics and generated artifacts in this report were reproduced from the clean
 validated modelling/data commit identified above. Subsequent changes limited to
-notebook guidance, documentation or tests do not change the validated model or
-dataset. Any later modelling, schema, validation or dependency change requires a
-fresh full-data run before it can be described as validated. Automated tests check
-syntax, notebook integrity, validation, preprocessing, small synthetic model runs,
-orchestration and result-comparison failures, but they do not replace validation
-against the 503,475-record analysis-ready dataset.
+documentation or published provenance should state that they do not alter the
+reported estimates. Any later modelling, schema, validation or dependency change
+requires a fresh full-data run before it can be described as validated. Automated
+tests check syntax, notebook integrity, validation, preprocessing, small
+synthetic model runs, orchestration and result-comparison failures, but they do
+not replace validation against the 503,475-record analysis-ready dataset.

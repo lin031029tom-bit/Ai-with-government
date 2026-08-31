@@ -46,11 +46,12 @@ The dissertation documents the data sources, unit of analysis, feature groups, l
 ## Published full-data results
 
 The browsable result package is available in [`published_results/`](published_results/README.md).
-It contains the 17 machine-readable tables and 11 figures produced by the strict
-full-data run on 23 August 2026. The accompanying `run_information.json` records
-the source commit, dataset SHA-256, row count, feature schema, training size,
-bootstrap design and dependency versions. The matching compressed analysis-ready
-input is available in `published_data/`.
+It contains the 17 machine-readable tables and 11 figures from the strict
+full-data reproduction, refreshed on 31 August 2026 after the Windows
+reproducibility bundle was added. The accompanying `run_information.json`
+records the source commit, dataset SHA-256, row count, feature schema, training
+size, bootstrap design, dependency versions and platform metadata. The matching
+compressed analysis-ready input is available in `published_data/`.
 
 ## Installation
 

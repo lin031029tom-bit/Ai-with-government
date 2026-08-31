@@ -1,6 +1,6 @@
 {
   "research_task": "retrospective severity classification conditional on a reported collision",
-  "git_commit": "93f1ce3fc826d4b674e1a1a57e3473b2fe8243f6",
+  "git_commit": "e5d0ccef9c3b7a638b5d9cc4dae3c8fe89383ce3",
   "git_worktree_dirty": false,
   "dataset_sha256": "5e629f2d931948429580ed778b636b31aa0775630b3e4475727e39df8ee630e1",
   "dataset_rows": 503475,
@@ -69,9 +69,24 @@
   "dependency_versions": {
     "pandas": "2.2.2",
     "numpy": "2.0.2",
+    "scipy": "1.18.0",
     "matplotlib": "3.10.0",
     "scikit-learn": "1.6.1",
+    "joblib": "1.5.3",
+    "threadpoolctl": "3.6.0",
     "openpyxl": "3.1.5",
     "nbformat": "5.10.4"
+  },
+  "runtime_environment": {
+    "python_implementation": "CPython",
+    "python_compiler": "Clang 21.1.4 ",
+    "python_build": "main",
+    "python_build_date": "Mar  3 2026 15:35:03",
+    "platform_system": "Darwin",
+    "platform_release": "21.6.0",
+    "platform_version": "Darwin Kernel Version 21.6.0: Mon Feb 19 20:24:14 PST 2024; root:xnu-8020.240.18.707.4~1/RELEASE_ARM64_T8101",
+    "platform_machine": "arm64",
+    "platform_processor": "arm",
+    "platform_platform": "macOS-12.7.4-arm64-arm-64bit"
   }
 }

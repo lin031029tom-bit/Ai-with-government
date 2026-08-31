@@ -1,11 +1,12 @@
 # Published full-data dissertation results
 
 This directory contains the complete shareable output from the strict dissertation
-reproduction run completed on 23 August 2026.
+reproduction run refreshed on 31 August 2026 after the Windows reproducibility
+bundle and expanded environment recording were added.
 
 ## Provenance
 
-- Source commit: `93f1ce3fc826d4b674e1a1a57e3473b2fe8243f6`
+- Source commit: `e5d0ccef9c3b7a638b5d9cc4dae3c8fe89383ce3`
 - Git worktree during execution: clean
 - Python: 3.12.13
 - Validated dataset rows: 503,475
@@ -26,6 +27,11 @@ The command completed full-data model training, paired class-stratified bootstra
 uncertainty estimation, rolling-origin temporal validation, permutation importance
 and robustness checks. All 10 required dissertation result tables matched the
 verified reference outputs.
+
+The refreshed `tables/run_information.json` records the fuller reproducibility
+metadata now captured by the workflow, including SciPy, joblib, threadpoolctl and
+operating-system/platform fields. The rounded dissertation estimates are
+unchanged.
 
 ## Contents
 
