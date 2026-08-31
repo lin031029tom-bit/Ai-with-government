@@ -60,6 +60,17 @@ RANDOM_STATE = 42
 DEFAULT_BOOTSTRAP_ITERATIONS = 1000
 DEFAULT_ANALYSIS_READY = Path("road_safety_analysis/analysis_ready_road_safety.csv")
 DEFAULT_OUTPUT_DIR = Path("road_safety_coding_outputs")
+TRACKED_DEPENDENCIES = (
+    "pandas",
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "scikit-learn",
+    "joblib",
+    "threadpoolctl",
+    "openpyxl",
+    "nbformat",
+)
 
 ROAD_TYPE_LABELS = {
     -1: "Unknown",
@@ -898,17 +909,28 @@ def current_git_commit() -> str | None:
 
 
 def dependency_versions() -> Dict[str, str]:
-    packages = [
-        "pandas",
-        "numpy",
-        "matplotlib",
-        "scikit-learn",
-        "openpyxl",
-        "nbformat",
-    ]
+    versions: Dict[str, str] = {}
+    for package in TRACKED_DEPENDENCIES:
+        try:
+            versions[package] = importlib.metadata.version(package)
+        except importlib.metadata.PackageNotFoundError:
+            versions[package] = "not installed"
+    return versions
+
+
+def runtime_environment() -> Dict[str, str]:
+    build_name, build_date = platform.python_build()
     return {
-        package: importlib.metadata.version(package)
-        for package in packages
+        "python_implementation": platform.python_implementation(),
+        "python_compiler": platform.python_compiler(),
+        "python_build": build_name,
+        "python_build_date": build_date,
+        "platform_system": platform.system(),
+        "platform_release": platform.release(),
+        "platform_version": platform.version(),
+        "platform_machine": platform.machine(),
+        "platform_processor": platform.processor(),
+        "platform_platform": platform.platform(),
     }
 
 
@@ -986,6 +1008,7 @@ def run_information(
         "rolling_origin_validation_executed": run_temporal_validation,
         "python_version": platform.python_version(),
         "dependency_versions": dependency_versions(),
+        "runtime_environment": runtime_environment(),
     }
 
 

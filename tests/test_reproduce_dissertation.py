@@ -26,6 +26,8 @@ class ReproduceDissertationTests(unittest.TestCase):
             analysis_ready=self.analysis_ready,
             output_dir=self.output_dir,
             reference_dir=self.reference_dir,
+            rtol=1e-6,
+            atol=1e-8,
         )
 
     @patch("reproduce_dissertation.subprocess.run")
@@ -83,6 +85,10 @@ class ReproduceDissertationTests(unittest.TestCase):
                 str(resolved_output_dir),
                 "--reference-dir",
                 str(resolved_reference_dir),
+                "--rtol",
+                "1e-06",
+                "--atol",
+                "1e-08",
             ],
         )
         self.assertEqual(verification_call.kwargs["cwd"], repository_root)

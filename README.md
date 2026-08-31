@@ -41,6 +41,7 @@ The dissertation documents the data sources, unit of analysis, feature groups, l
 | `example_results/tables/` | Verified descriptive, model, robustness, interpretation and provenance outputs |
 | `example_results/figures/` | Verified descriptive, discrimination, calibration and rolling-validation figures |
 | `published_results/` | Full-data tables, figures and provenance regenerated from the merged `main` workflow |
+| `reproducibility/windows_environment/` | Windows setup notes, full pip lock file, Conda environment and PowerShell reproduction helper |
 
 ## Published full-data results
 
@@ -61,6 +62,11 @@ source .venv/bin/activate        # Windows: .venv\Scripts\activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
+
+For a fresh Windows environment, use the fuller reproducibility bundle in
+[`reproducibility/windows_environment/`](reproducibility/windows_environment/README.md).
+It includes a frozen dependency list with transitive numerical packages such as
+SciPy, joblib and threadpoolctl.
 
 ## Automated checks
 
@@ -203,15 +209,26 @@ python reproduce_dissertation.py \
   --output-dir /path/to/dissertation_results
 ```
 
-The command fails if strict dataset validation fails, model execution fails, a
-required result is missing, or a generated core, uncertainty, temporal,
+By default, the command fails if strict dataset validation fails, model execution
+fails, a required result is missing, or a generated core, uncertainty, temporal,
 robustness, threshold or permutation-importance table differs from the verified
 reference output beyond a numerical tolerance of `1e-9`.
 
+Cross-platform numerical libraries can produce tiny floating-point differences.
+For documented Windows diagnostics, the comparison tolerance can be supplied
+explicitly:
+
+```bash
+python reproduce_dissertation.py --rtol 1e-6 --atol 1e-8
+```
+
+The strict `1e-9` benchmark remains the default.
+
 `run_information.json` records the exact Git commit, whether the worktree was
 dirty, dataset SHA-256, row and column counts, selected features, actual training
-records, bootstrap design, Python and dependency versions, traffic merge
-coverage and which optional analyses were executed.
+records, bootstrap design, Python and dependency versions, operating-system and
+platform metadata, traffic merge coverage and which optional analyses were
+executed.
 
 ## Interpretation
 

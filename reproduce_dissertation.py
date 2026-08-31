@@ -51,6 +51,26 @@ def parse_args() -> argparse.Namespace:
             "example_results in the repository."
         ),
     )
+    parser.add_argument(
+        "--rtol",
+        type=float,
+        default=1e-9,
+        help=(
+            "Relative tolerance for comparing generated numeric tables with the "
+            "verified reference outputs. Defaults to the strict dissertation "
+            "benchmark of 1e-9."
+        ),
+    )
+    parser.add_argument(
+        "--atol",
+        type=float,
+        default=1e-9,
+        help=(
+            "Absolute tolerance for comparing generated numeric tables with the "
+            "verified reference outputs. Defaults to the strict dissertation "
+            "benchmark of 1e-9."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -152,6 +172,7 @@ def main() -> None:
     print(f"Dataset: {analysis_ready}")
     print(f"Output: {output_dir}")
     print(f"Reference results: {reference_dir}")
+    print(f"Verification tolerance: rtol={args.rtol:g}, atol={args.atol:g}")
 
     analysis_command = [
         sys.executable,
@@ -181,6 +202,10 @@ def main() -> None:
         str(output_dir),
         "--reference-dir",
         str(reference_dir),
+        "--rtol",
+        str(args.rtol),
+        "--atol",
+        str(args.atol),
     ]
     subprocess.run(
         verification_command,

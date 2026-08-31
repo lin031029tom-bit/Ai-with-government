@@ -10,6 +10,7 @@ import pandas as pd
 from road_safety_dissertation_coding import (
     TARGET,
     clean_feature_frame,
+    dependency_versions,
     evaluate,
     feature_lists,
     fit_main_models,
@@ -17,6 +18,7 @@ from road_safety_dissertation_coding import (
     metric_uncertainty_outputs,
     mkdir,
     rolling_origin_outputs,
+    runtime_environment,
     validated_binary_target,
 )
 
@@ -223,6 +225,23 @@ class ModellingWorkflowTests(unittest.TestCase):
         )
 
         self.assertEqual(result["roc_auc"], 0.5)
+
+    def test_records_transitive_dependencies_and_platform(self) -> None:
+        versions = dependency_versions()
+        for package in ("numpy", "scipy", "scikit-learn", "joblib", "threadpoolctl"):
+            self.assertIn(package, versions)
+            self.assertTrue(versions[package])
+
+        environment = runtime_environment()
+        for field in (
+            "python_implementation",
+            "python_compiler",
+            "platform_system",
+            "platform_machine",
+            "platform_platform",
+        ):
+            self.assertIn(field, environment)
+            self.assertIsInstance(environment[field], str)
 
     def test_main_models_reject_single_class_test_split(self) -> None:
         rows = []
